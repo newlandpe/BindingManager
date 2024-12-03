@@ -1,6 +1,5 @@
 # BindingManager Bot
 
-## Description
 This script is a VKontakte (VK) chatbot designed to integrate with a Minecraft server. It facilitates interactions between VK users and the Minecraft server, allowing users to bind VK accounts to Minecraft accounts, send console commands to the server, manage notifications, and access predefined answers to frequently asked questions (FAQs).
 
 ## Features
