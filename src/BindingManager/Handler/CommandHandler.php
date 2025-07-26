@@ -59,7 +59,7 @@ class CommandHandler {
      */
     public function handle(array $message, LanguageManager $lang, DataProviderInterface $dataProvider): void {
         $text = $message['text'] ?? '';
-        if ($text === '' || (strlen($text) > 0 && $text[0] !== '/')) {
+        if ($text === '' || ($text[0] !== '/')) {
             return;
         }
 

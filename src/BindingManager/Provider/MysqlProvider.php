@@ -47,6 +47,7 @@ class MysqlProvider implements DataProviderInterface {
         }
         $this->table = $table;
         $this->codeGenerator = $codeGenerator;
+        /** @var int $timeout */
         $this->bindingCodeTimeoutSeconds = (int)($config['binding_code_timeout_seconds'] ?? 300);
 
         try {

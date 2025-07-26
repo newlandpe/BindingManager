@@ -43,11 +43,11 @@ class AsyncRequestManager {
 
         while ($done = curl_multi_info_read($this->multi_handle)) {
             $ch = $done['handle'];
-            if (!$ch instanceof \CurlHandle) {
+            if (!array_key_exists('handle', $done) || !$ch instanceof \CurlHandle) {
                 continue;
             }
             $requestInfo = $this->requests[(int)$ch] ?? null;
-            if (!is_array($requestInfo) || !array_key_exists('callback', $requestInfo)) {
+            if (!is_array($requestInfo)) {
                 continue;
             }
 
