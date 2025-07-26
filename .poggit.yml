@@ -9,3 +9,4 @@ projects:
     model:
       type: plugin
       main: src/BindingManager/Main.php
+...
