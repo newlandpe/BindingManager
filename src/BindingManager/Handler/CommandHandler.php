@@ -58,16 +58,23 @@ class CommandHandler {
      * @param DataProviderInterface $dataProvider
      */
     public function handle(array $message, LanguageManager $lang, DataProviderInterface $dataProvider): void {
-        $text = $message['text'] ?? '';
-        if ($text === '' || ($text[0] !== '/')) {
+        $text = (string)($message['text'] ?? '');
+        if ($text === '') {
+            return;
+        }
+        if ($text[0] !== '/') {
             return;
         }
 
         /** @var array<int, string> $explodedText */
         $explodedText = array_pad(explode(' ', $text, 2), 2, '');
-        list($commandFull, $argString) = $explodedText;
+        $commandFull = $explodedText[0];
+        $argString = $explodedText[1];
 
-        $args = trim($argString) !== '' ? explode(' ', trim($argString)) : [];
+        $args = [];
+        if (trim($argString) !== '') {
+            $args = explode(' ', trim($argString));
+        }
 
         /** @var array<int, string> $explodedCommand */
         $explodedCommand = array_pad(explode('@', $commandFull, 2), 2, '');
