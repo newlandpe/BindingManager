@@ -64,12 +64,12 @@ class CommandHandler {
         }
 
         $explodedText = explode(' ', $text . ' ', 2);
-        $commandFull = $explodedText[0] ?? '';
+        $commandFull = (is_array($explodedText) && isset($explodedText[0])) ? $explodedText[0] : '';
         $argString = $explodedText[1] ?? '';
 
         $args = trim($argString) !== '' ? explode(' ', trim($argString)) : [];
 
-        $explodedCommand = (array) explode('@', $commandFull, 2);
+        $explodedCommand = explode('@', $commandFull, 2);
         $commandNameRaw = $explodedCommand[0] ?? '';
         $targetBot = $explodedCommand[1] ?? null;
         $commandName = ltrim($commandNameRaw, '/');
