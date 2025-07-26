@@ -21,7 +21,7 @@ class UnbindCommand implements CommandInterface {
         $chatId = 0;
         $fromId = 0;
 
-        if ($context->callbackQuery !== null && is_array($context->callbackQuery)) {
+        if ($context->callbackQuery !== null) {
             if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
                 if (isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
                     $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
@@ -30,7 +30,7 @@ class UnbindCommand implements CommandInterface {
             if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
                 $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
             }
-        } elseif (is_array($context->message)) {
+        } elseif (isset($context->message)) {
             if (isset($context->message['chat']) && is_array($context->message['chat'])) {
                 $chatId = (int)($context->message['chat']['id'] ?? 0);
             }

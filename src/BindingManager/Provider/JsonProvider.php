@@ -166,7 +166,7 @@ class JsonProvider implements DataProviderInterface {
 
         if (isset($data['unbind_code']) && $data['unbind_code'] === $code) {
             // Code expires after 5 minutes (300 seconds)
-            if (time() - (int)$data['unbind_timestamp'] > $this->bindingCodeTimeoutSeconds) {
+            if (isset($data['unbind_timestamp']) && (time() - (int)$data['unbind_timestamp'] > $this->bindingCodeTimeoutSeconds)) {
                 // Code expired, clear unbind request
                 unset($data['unbind_code'], $data['unbind_timestamp']);
                 $this->dataFile->set((string)$telegramId, $data);

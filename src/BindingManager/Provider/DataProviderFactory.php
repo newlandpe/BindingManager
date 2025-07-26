@@ -15,6 +15,9 @@ class DataProviderFactory {
     public static function create(array $config): DataProviderInterface {
         $provider = strtolower((string)($config['provider'] ?? ''));
         $codeLengthBytes = (int)($config['code_length_bytes'] ?? 3);
+        if ($codeLengthBytes < 1) {
+            $codeLengthBytes = 1; // Ensure it's at least 1
+        }
         $codeGenerator = new CodeGenerator($codeLengthBytes);
 
         $timeout = $config['binding_code_timeout_seconds'] ?? 300;

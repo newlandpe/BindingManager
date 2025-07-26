@@ -174,7 +174,7 @@ class YamlProvider implements DataProviderInterface {
         if (!is_array($data)) return false;
 
         if (isset($data['unbind_code']) && $data['unbind_code'] === $code) {
-            if (time() - (int)$data['unbind_timestamp'] > $this->bindingCodeTimeoutSeconds) {
+            if (isset($data['unbind_timestamp']) && (time() - (int)$data['unbind_timestamp'] > $this->bindingCodeTimeoutSeconds)) {
                 // Code expired, clear unbind request
                 unset($data['unbind_code'], $data['unbind_timestamp']);
                 $this->dataFile->set((string)$telegramId, $data);

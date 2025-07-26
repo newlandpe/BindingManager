@@ -68,7 +68,7 @@ class AdminPlayerInfoCommand implements CommandInterface {
             return true;
         }
 
-        $playerName = $dataProvider->getBoundPlayerName((int)$telegramId);
+        $playerName = $dataProvider->getBoundPlayerName($telegramId);
 
         if ($playerName !== null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-success", [

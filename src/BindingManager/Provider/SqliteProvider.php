@@ -154,7 +154,7 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return null;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return is_array($fetch) && $fetch !== false ? (int)($fetch['telegram_id'] ?? 0) : null;
+        return is_array($fetch) ? (int)($fetch['telegram_id'] ?? 0) : null;
     }
 
     public function initiateUnbinding(int $telegramId): ?string {
@@ -187,7 +187,7 @@ class SqliteProvider implements DataProviderInterface {
         if ($result === false) return false;
         $data = $result->fetchArray(SQLITE3_ASSOC);
 
-        if (!is_array($data) || (is_array($data) && (time() - (int)($data['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds))) {
+        if (!is_array($data) || (isset($data['unbind_timestamp']) && (time() - (int)$data['unbind_timestamp'] > $this->bindingCodeTimeoutSeconds))) {
             // Code expired or not found, clear unbind request
             $updateStmt = $this->db->prepare("UPDATE bindings SET unbind_code = NULL, unbind_timestamp = NULL WHERE player_name = :name");
             if ($updateStmt === false) return false;

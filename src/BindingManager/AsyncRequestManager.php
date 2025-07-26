@@ -47,7 +47,7 @@ class AsyncRequestManager {
                 continue;
             }
             $requestInfo = $this->requests[(int)$ch] ?? null;
-            if (!is_array($requestInfo)) {
+            if (!is_array($requestInfo) || !array_key_exists('callback', $requestInfo)) {
                 continue;
             }
 

@@ -52,17 +52,17 @@ class CallbackQueryHandler {
         }
 
         $data = $callbackQuery['data'] ?? null;
-        if (!is_string($data)) { // Add this check
+        if (!is_string($data)) {
             return; // No data or invalid data type
         }
 
-        $explodedData = explode(':', $data); // No need for (string) cast now
+        $explodedData = explode(':', $data);
         if (count($explodedData) < 2) {
             return; // Invalid data format
         }
 
-        $menu = $explodedData[0];
-        $action = $explodedData[1];
+        $menu = $explodedData[0] ?? '';
+        $action = $explodedData[1] ?? '';
 
         // Acknowledge the callback query only if we understand the data format
         $callbackQueryId = $callbackQuery['id'] ?? null;
