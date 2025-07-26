@@ -13,8 +13,8 @@ class DataProviderFactory {
      * @param array<string, mixed> $config
      */
     public static function create(array $config): DataProviderInterface {
-        $provider = strtolower((string) ($config['provider'] ?? ''));
-        $codeLengthBytes = (int) ($config['code_length_bytes'] ?? 3);
+        $provider = strtolower($config['provider'] ?? '');
+        $codeLengthBytes = $config['code_length_bytes'] ?? 3;
         $codeGenerator = new CodeGenerator($codeLengthBytes);
 
         $timeout = $config['binding_code_timeout_seconds'] ?? 300;
@@ -34,10 +34,6 @@ class DataProviderFactory {
 
         if (!class_exists($providerClass)) {
             throw new InvalidArgumentException("Provider class '$providerClass' does not exist");
-        }
-
-        if (!is_subclass_of($providerClass, DataProviderInterface::class)) {
-            throw new InvalidArgumentException("Provider class '$providerClass' must implement DataProviderInterface");
         }
 
         $subConfig = $config[$provider] ?? [];

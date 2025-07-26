@@ -70,7 +70,7 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return null;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return ($fetch['player_name'] ?? null);
+        return is_array($fetch) ? ($fetch['player_name'] ?? null) : null;
     }
 
     public function initiateBinding(string $playerName, int $telegramId): ?string {
@@ -126,7 +126,7 @@ class SqliteProvider implements DataProviderInterface {
         $stmt->bindValue(':name', strtolower($playerName), SQLITE3_TEXT);
         $result = $stmt->execute();
         if ($result === false) return false;
-        return $result->fetchArray() !== false;
+        return is_array($result->fetchArray());
     }
 
     public function toggleNotifications(int $telegramId): bool {
@@ -154,7 +154,7 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return null;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return is_array($fetch) && $fetch !== false ? (int) ($fetch['telegram_id'] ?? null) : null;
+        return is_array($fetch) && $fetch !== false ? (int) ($fetch['telegram_id'] ?? 0) : null;
     }
 
     public function initiateUnbinding(int $telegramId): ?string {
@@ -197,7 +197,7 @@ class SqliteProvider implements DataProviderInterface {
         }
 
         // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int) $data['telegram_id']);
+        return $this->unbindByTelegramId((int) ($data['telegram_id'] ?? 0));
     }
 
     public function initiateReset(int $telegramId): ?string {

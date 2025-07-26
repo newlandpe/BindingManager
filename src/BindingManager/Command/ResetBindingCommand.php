@@ -16,7 +16,7 @@ class ResetBindingCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = $context->message['chat']['id'] ?? null;
+        $chatId = (int) ($context->message['chat']['id'] ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
 
@@ -26,12 +26,12 @@ class ResetBindingCommand implements CommandInterface {
             return true;
         }
 
-        if (($context->message['chat']['type'] ?? null) !== 'private') {
+        if (!isset($context->message['chat']) || !is_array($context->message['chat']) || ($context->message['chat']['type'] ?? null) !== 'private') {
             $this->bot->sendMessage($chatId, $lang->get("telegram-command-private-only"));
             return true;
         }
 
-        $code = $dataProvider->initiateReset($chatId);
+        $code = $dataProvider->initiateReset((int) $chatId);
 
         if ($code !== null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-reset-code", ["code" => $code]));

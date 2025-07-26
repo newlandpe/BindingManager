@@ -17,8 +17,8 @@ class AdminPlayerInfoCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = $context->message['chat']['id'] ?? null;
-        $fromId = $context->message['from']['id'] ?? null;
+        $chatId = (int) ($context->message['chat']['id'] ?? 0);
+        $fromId = (int) ($context->message['from']['id'] ?? 0);
         $args = $context->args;
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
@@ -37,8 +37,7 @@ class AdminPlayerInfoCommand implements CommandInterface {
         } else {
             $senderPlayerName = $dataProvider->getBoundPlayerName($fromId);
             if ($senderPlayerName !== null) {
-                $senderPlayer = Server::getInstance()->getOfflinePlayer($senderPlayerName);
-                if ($senderPlayer !== null && $senderPlayer->isOp()) {
+                if (Server::getInstance()->isOp($senderPlayerName)) {
                     $isAllowed = true;
                 }
             }
@@ -51,9 +50,9 @@ class AdminPlayerInfoCommand implements CommandInterface {
 
         $telegramId = null;
 
-        if (isset($context->message['forward_from']['id'])) {
+        if (isset($context->message['forward_from']) && is_array($context->message['forward_from']) && isset($context->message['forward_from']['id'])) {
             $telegramId = (int) $context->message['forward_from']['id'];
-        } elseif (isset($context->message['reply_to_message']['from']['id'])) {
+        } elseif (isset($context->message['reply_to_message']) && is_array($context->message['reply_to_message']) && isset($context->message['reply_to_message']['from']) && is_array($context->message['reply_to_message']['from']) && isset($context->message['reply_to_message']['from']['id'])) {
             $telegramId = (int) $context->message['reply_to_message']['from']['id'];
         } elseif (isset($args[0]) && is_numeric($args[0])) {
             $telegramId = (int) $args[0];

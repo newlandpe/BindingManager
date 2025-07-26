@@ -212,7 +212,7 @@ class MysqlProvider implements DataProviderInterface {
         }
 
         // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int) $result['telegram_id']);
+        return $this->unbindByTelegramId((int) ($result['telegram_id'] ?? 0));
     }
 
     public function initiateReset(int $telegramId): ?string {

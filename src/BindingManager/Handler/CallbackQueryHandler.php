@@ -34,7 +34,7 @@ class CallbackQueryHandler {
         }
 
         // --- SECURITY: Ensure callbacks are only handled in private chats ---
-        if (($message['chat']['type'] ?? 'private') !== 'private') {
+        if (!isset($message['chat']) || !is_array($message['chat']) || ($message['chat']['type'] ?? 'private') !== 'private') {
             $callbackQueryId = $callbackQuery['id'] ?? null;
             if ($callbackQueryId !== null) {
                 $this->bot->request('answerCallbackQuery', [
@@ -47,7 +47,7 @@ class CallbackQueryHandler {
         }
         // --- END SECURITY ---
 
-        if (($message['from']['id'] ?? null) !== $this->bot->getId()) {
+        if (!isset($message['from']) || !is_array($message['from']) || ($message['from']['id'] ?? null) !== $this->bot->getId()) {
             return; // Not for us
         }
 
@@ -84,8 +84,8 @@ class CallbackQueryHandler {
     }
 
     private function handleMainMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = $context->callbackQuery['message']['chat']['id'] ?? 0;
-        $fromId = $context->callbackQuery['from']['id'] ?? 0;
+        $chatId = (int) ($context->callbackQuery['message']['chat']['id'] ?? 0);
+        $fromId = (int) ($context->callbackQuery['from']['id'] ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $bot = $context->bot;
@@ -110,8 +110,8 @@ class CallbackQueryHandler {
      * @param CallbackQueryContext $context
      */
     private function handleBindingMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = $context->callbackQuery['message']['chat']['id'] ?? 0;
-        $fromId = $context->callbackQuery['from']['id'] ?? 0;
+        $chatId = (int) ($context->callbackQuery['message']['chat']['id'] ?? 0);
+        $fromId = (int) ($context->callbackQuery['from']['id'] ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $bot = $context->bot;
@@ -121,7 +121,7 @@ class CallbackQueryHandler {
             case 'bind':
                 $main = Main::getInstance();
                 if ($main !== null) {
-                    $main->setUserState($fromId, 'awaiting_nickname');
+                    $main->setUserState((int) $fromId, 'awaiting_nickname');
                     $bot->sendMessage($chatId, $lang->get('telegram-enter-nickname'));
                 }
                 break;
@@ -142,14 +142,14 @@ class CallbackQueryHandler {
                 }
                 break;
             case 'notifications':
-                $isEnabled = $dataProvider->toggleNotifications($fromId);
+                $isEnabled = $dataProvider->toggleNotifications((int) $fromId);
                 $status = $isEnabled ? 'enabled' : 'disabled';
                 $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}"));
                 break;
             case 'cancel':
-                $messageId = $context->callbackQuery['message']['message_id'] ?? null;
-                if ($messageId !== null) {
-                    $dataProvider->unbindByTelegramId($fromId);
+                $messageId = (int) ($context->callbackQuery['message']['message_id'] ?? 0);
+                if ($messageId !== 0) {
+                    $dataProvider->unbindByTelegramId((int) $fromId);
                     $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));
                 }
                 break;

@@ -66,16 +66,16 @@ class CommandHandler {
         [$commandFull, $argString] = explode(' ', $text . ' ', 2);
         $args = trim($argString) !== '' ? explode(' ', trim($argString)) : [];
 
-        [$commandNameRaw, $targetBot] = array_pad(explode('@', (string) $commandFull, 2), 2, null);
+        [$commandNameRaw, $targetBot] = array_pad(explode('@', $commandFull, 2), 2, null);
         $commandName = ltrim($commandNameRaw, '/');
 
         if ($targetBot !== null && strtolower($targetBot) !== strtolower($this->bot->getUsername())) {
             return;
         }
 
-        $chat = $message['chat'] ?? [];
-        $chatId = $chat['id'] ?? null;
-        if ($chatId === null) return;
+        $chat = is_array($message['chat']) ? $message['chat'] : [];
+        $chatId = (int) ($chat['id'] ?? 0);
+        if ($chatId === 0) return;
 
         if (($chat['type'] ?? 'private') !== 'private' && $targetBot === null) {
             return;

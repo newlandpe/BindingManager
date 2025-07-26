@@ -18,7 +18,7 @@ class StartCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = $context->message['chat']['id'] ?? 0;
+        $chatId = (int) ($context->message['chat']['id'] ?? 0);
         $lang = $context->lang;
         $keyboardFactory = $context->keyboardFactory;
 

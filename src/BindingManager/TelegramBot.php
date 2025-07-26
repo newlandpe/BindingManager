@@ -103,9 +103,9 @@ class TelegramBot {
             $text = $update['message']['text'] ?? null;
 
             if ($fromId !== null && $text !== null) {
-                $state = $main->getUserState($fromId);
+                $state = $main->getUserState((int) $fromId);
                 if ($state === 'awaiting_nickname') {
-                    $main->setUserState($fromId, null); // Reset state
+                    $main->setUserState((int) $fromId, null); // Reset state
                     $command = $this->commandHandler->findCommand('binding');
                     if ($command !== null) {
                         $keyboardFactory = new KeyboardFactory();
@@ -206,7 +206,7 @@ class TelegramBot {
         $params = [
             'offset' => $main->getOffset(),
             'timeout' => 30, // Use long-polling
-            'allowed_updates' => json_encode(['message', 'callback_query'])
+            'allowed_updates' => json_encode(['message', 'callback_query'], JSON_THROW_ON_ERROR)
         ];
         $this->request('getUpdates', $params, function($response) use ($callback) {
             if ($response === null) {

@@ -33,7 +33,7 @@ class JsonProvider implements DataProviderInterface {
         $data = $this->dataFile->get((string) $telegramId);
         if (!is_array($data)) return BindingStatus::NOT_BOUND; // Not bound or invalid data
 
-        if (isset($data['confirmed']) && (bool) $data['confirmed']) {
+        if ((bool)($data['confirmed'] ?? false)) {
             return BindingStatus::CONFIRMED; // Confirmed
         }
 
@@ -84,7 +84,7 @@ class JsonProvider implements DataProviderInterface {
 
         if (!($data['confirmed'] ?? false) && (($data['code'] ?? '') === $code)) {
             // Code expires after 5 minutes (300 seconds)
-            if (time() - ($data['timestamp'] ?? 0) > 300) {
+            if (time() - (int)($data['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds) {
                 return false; // Code expired
             }
 

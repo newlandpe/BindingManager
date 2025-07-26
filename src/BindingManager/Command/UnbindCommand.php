@@ -18,12 +18,15 @@ class UnbindCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        if ($context->callbackQuery !== null) {
-            $chatId = $context->callbackQuery['message']['chat']['id'] ?? 0;
-            $fromId = $context->callbackQuery['from']['id'] ?? 0;
-        } else {
-            $chatId = $context->message['chat']['id'] ?? 0;
-            $fromId = $context->message['from']['id'] ?? 0;
+        $chatId = 0;
+        $fromId = 0;
+
+        if ($context->callbackQuery !== null && is_array($context->callbackQuery)) {
+            $chatId = (int) ($context->callbackQuery['message']['chat']['id'] ?? 0);
+            $fromId = (int) ($context->callbackQuery['from']['id'] ?? 0);
+        } elseif (is_array($context->message)) {
+            $chatId = (int) ($context->message['chat']['id'] ?? 0);
+            $fromId = (int) ($context->message['from']['id'] ?? 0);
         }
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
@@ -32,7 +35,7 @@ class UnbindCommand implements CommandInterface {
             return true;
         }
 
-        $code = $dataProvider->initiateUnbinding($fromId);
+        $code = $dataProvider->initiateUnbinding((int) $fromId);
         if ($code === null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-unbind-fail"));
             return true;

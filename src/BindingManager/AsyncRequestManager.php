@@ -26,7 +26,7 @@ class AsyncRequestManager {
         return self::$instance;
     }
 
-    public function addRequest($ch, ?callable $callback = null): void {
+    public function addRequest(\CurlHandle $ch, ?callable $callback = null): void {
         curl_multi_add_handle($this->multi_handle, $ch);
         $this->requests[(int) $ch] = ['handle' => $ch, 'callback' => $callback];
     }
@@ -42,6 +42,9 @@ class AsyncRequestManager {
         } while ($status === CURLM_CALL_MULTI_PERFORM);
 
         while ($done = curl_multi_info_read($this->multi_handle)) {
+            if (!is_array($done)) {
+                continue;
+            }
             $ch = $done['handle'];
             $requestInfo = $this->requests[(int) $ch] ?? null;
             if ($requestInfo === null) {
