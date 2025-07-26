@@ -65,11 +65,11 @@ class CommandHandler {
 
         /** @var array<int, string> $explodedText */
         $explodedText = explode(' ', $text . ' ', 2);
-        $commandFull = ((array)$explodedText)[0] ?? '';
-        $argString = $explodedText[1] ?? '';
+        list($commandFull, $argString) = $explodedText + ['', ''];
 
         $args = trim($argString) !== '' ? explode(' ', trim($argString)) : [];
 
+        /** @var array<int, string> $explodedCommand */
         $explodedCommand = explode('@', $commandFull, 2);
         $commandNameRaw = $explodedCommand[0] ?? '';
         $targetBot = $explodedCommand[1] ?? null;
