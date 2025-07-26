@@ -56,8 +56,8 @@ telegram-myinfo-online: |
 
 namespace YourNamespace;
 
-use pocketmine\event\Listener;
 use BindingManager\Event\PlayerDataInfoEvent;
+use pocketmine\event\Listener;
 
 class InfoListener implements Listener {
 
