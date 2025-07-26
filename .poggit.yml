@@ -1,0 +1,11 @@
+--- # Poggit-CI configuration
+build-by-default: true
+branches:
+  - main
+
+projects:
+  BindingManager:
+    path: ""
+    model:
+      type: plugin
+      main: src/BindingManager/Main.php
