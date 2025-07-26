@@ -39,6 +39,7 @@ telegram-myinfo-player-not-found: "Гравець з вашим нікнеймо
 telegram-unbind-fail: "Не вдалося відв'язати акаунт. Можливо, він і не був прив'язаний."
 telegram-unbind-success: "Акаунт {playerName} було успішно відв'язано."
 telegram-unbind-code: "Ваш код для відв'язки: {code}. Введіть цю команду в грі для підтвердження: /tg unbind confirm {code}"
+telegram-unbind-cancelled: "Процес відв'язки скасовано."
 
 # Binding
 binding.no_code: "Не вдалося згенерувати код підтвердження. Спробуйте пізніше."

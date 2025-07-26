@@ -39,6 +39,7 @@ telegram-myinfo-player-not-found: "Player with your nickname not found on the se
 telegram-unbind-fail: "Failed to unbind the account. Perhaps it is not bound."
 telegram-unbind-success: "Account {playerName} has been successfully unbound."
 telegram-unbind-code: "Your unbinding code is: {code}. Enter this command in-game to confirm: /tg unbind confirm {code}"
+telegram-unbind-cancelled: "Unbinding process cancelled."
 
 # Binding
 binding.no_code: "Failed to generate a confirmation code. Please try again later."

@@ -114,6 +114,11 @@ class TelegramBot {
             if ($fromId !== 0 && $text !== null) {
                 $state = $main->getUserState($fromId);
                 if ($state === 'awaiting_nickname') {
+                    if (strtolower($text) === '/cancel') {
+                        $main->setUserState($fromId, null); // Reset state
+                        $this->sendMessage($chatId, $lang->get("telegram-binding-cancelled"), $keyboardFactory->createRemoveKeyboard());
+                        return;
+                    }
                     $main->setUserState($fromId, null); // Reset state
                     $command = $this->commandHandler->findCommand('binding');
                     if ($command !== null) {
@@ -122,6 +127,12 @@ class TelegramBot {
                         $command->execute($context);
                     }
                     return;
+                } elseif ($state === 'awaiting_unbind_confirm') {
+                    if (strtolower($text) === '/cancel') {
+                        $main->setUserState($fromId, null); // Reset state
+                        $this->sendMessage($chatId, $lang->get("telegram-unbind-cancelled"), $keyboardFactory->createRemoveKeyboard());
+                        return;
+                    }
                 }
             }
 

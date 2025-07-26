@@ -40,8 +40,10 @@ class UnbindCommand implements CommandInterface {
         }
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
+        $keyboardFactory = $context->keyboardFactory;
+        $main = Main::getInstance();
 
-        if ($chatId === 0 || $fromId === 0) {
+        if ($chatId === 0 || $fromId === 0 || $main === null) {
             return true;
         }
 
@@ -51,7 +53,8 @@ class UnbindCommand implements CommandInterface {
             return true;
         }
 
-        $this->bot->sendMessage($chatId, $lang->get("telegram-unbind-code", ['code' => $code]));
+        $main->setUserState($fromId, 'awaiting_unbind_confirm');
+        $this->bot->sendMessage($chatId, $lang->get("telegram-unbind-code", ['code' => $code]), $keyboardFactory->createCancelKeyboard());
         return true;
     }
 }
