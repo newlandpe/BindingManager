@@ -1,0 +1,25 @@
+name: BindingManager
+version: 1.0.0
+main: BindingManager\Main
+api: 5.0.0
+author: ChernegaSergiy
+description: "A plugin to bind player accounts to Telegram for authentication and other purposes."
+commands:
+  confirm:
+    description: "Confirm your account binding."
+    usage: "/confirm <code>"
+    permission: bindingmanager.command.confirm
+  tg:
+    description: "Manage Telegram bindings."
+    usage: "/tg <subcommand>"
+    permission: bindingmanager.command.tg
+permissions:
+  bindingmanager.command.confirm:
+    description: "Allows players to confirm their Telegram binding."
+    default: true
+  bindingmanager.command.tg:
+    description: "Allows players to manage their Telegram bindings (e.g., unbind)."
+    default: true
+  bindingmanager.command.forceunbind:
+    description: "Allows administrators to force unbind a player's Telegram account."
+    default: op

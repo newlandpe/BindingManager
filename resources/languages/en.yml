@@ -1,0 +1,86 @@
+# English language file for BindingManager
+
+# In-game commands
+command-confirm-success: "§aYour account has been successfully bound!"
+command-confirm-fail: "§cFailed to bind your account. You may not have started the binding process, the code is incorrect, or it has expired."
+command-only-in-game: "This command can only be used in-game."
+command-unbind-confirm-success: "§aYour account has been successfully unbound!"
+command-unbind-confirm-fail: "§cFailed to unbind your account. You may not have initiated the unbinding process, or the code is incorrect."
+
+# In-game prompts
+ingame-prompt-bind: "§eYour account is not bound to Telegram. Use /tg bind to start the process with @{bot_username}."
+
+# Telegram Bot Messages
+telegram-start: "🧳 Hello, friend! This is BindingManager, ready to secure your account."
+telegram-help: |
+  💡 Command List:
+  /binding [nickname] - Bind your game account to this Telegram chat.
+  /myinfo - Get information about your bound account.
+  /unbind - Unbind your account from Telegram.
+telegram-binding-usage: "Please provide your Minecraft nickname: /binding <nickname>"
+telegram-binding-code: "Your confirmation code is: {code}. Enter this command in-game to confirm: /confirm {code}"
+telegram-binding-already-bound: "This Telegram account is already bound or pending confirmation."
+telegram-binding-player-already-bound: "This player name is already bound to another account."
+# /myinfo command templates
+telegram-myinfo-online: |
+  Information about your account:
+  Nickname: {nickname}
+  Status: Online
+  Health: {health}
+  Position: {position}
+telegram-myinfo-offline: |
+  Information about your account:
+  Nickname: {nickname}
+  Status: Offline
+telegram-myinfo-not-bound: "You do not have an account bound."
+telegram-myinfo-player-not-found: "Player with your nickname not found on the server."
+
+# Unbind
+telegram-unbind-fail: "Failed to unbind the account. Perhaps it is not bound."
+telegram-unbind-success: "Account {playerName} has been successfully unbound."
+telegram-unbind-code: "Your unbinding code is: {code}. Enter this command in-game to confirm: /tg unbind confirm {code}"
+
+# Binding
+binding.no_code: "Failed to generate a confirmation code. Please try again later."
+chat-binding-code: "Your confirmation code is: {code}. Enter this command in-game to confirm: /confirm {code}"
+telegram-enter-nickname: "Please enter your in-game nickname:"
+
+# Player info placeholders (used internally, not for direct translation)
+player-info-status-online: "Online"
+player-info-status-offline: "Offline"
+
+# Keyboards
+keyboard-main-menu-bind: "🔗 Binding"
+keyboard-main-menu-help: "❓ Help"
+keyboard-binding-menu-myinfo: "👤 My Info"
+keyboard-binding-menu-notifications: "🔔 Notifications"
+keyboard-binding-menu-unbind: "🔌 Unbind"
+keyboard-binding-menu-bind: "🔗 Bind Account"
+keyboard-cancel-binding: "❌ Cancel Binding"
+
+# Binding Menu
+telegram-binding-menu-message: "Select an option for binding management:"
+telegram-binding-cancelled: "Binding process cancelled."
+
+# Notifications
+telegram-notifications-status-changed-enabled: "🔔 Notifications have been enabled."
+telegram-notifications-status-changed-disabled: "🔕 Notifications have been disabled."
+
+# Security
+telegram-command-private-only: "For security reasons, this command can only be used in a private chat with the bot."
+
+# Admin commands
+command-no-permission: "§cYou do not have permission to use this command."
+command-forceunbind-success: "§aSuccessfully unbound {player_name} from Telegram."
+command-forceunbind-fail: "§cFailed to unbind {player_name} from Telegram. Player might not be bound or an error occurred."
+command-forceunbind-player-not-bound: "§cPlayer {player_name} is not bound to any Telegram account."
+
+# Admin Telegram commands
+telegram-admin-permission-denied: "You do not have permission to use this command."
+telegram-admin-playerinfo-usage: "Usage: /admininfo <telegram_id>"
+telegram-admin-playerinfo-success: "Telegram ID {telegram_id} is bound to player: {player_name}"
+telegram-admin-playerinfo-not-found: "Telegram ID {telegram_id} is not bound to any player."
+
+# Reset Binding
+telegram-reset-code: "Your reset code is: {code}. Please contact a server administrator with this code to complete the reset process."
+telegram-reset-fail: "Failed to initiate account reset. You may not have a bound account or an error occurred."
