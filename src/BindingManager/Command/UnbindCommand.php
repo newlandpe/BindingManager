@@ -6,6 +6,7 @@ namespace BindingManager\Command;
 
 use BindingManager\Factory\KeyboardFactory;
 use BindingManager\LanguageManager;
+use BindingManager\Main;
 use BindingManager\Provider\DataProviderInterface;
 use BindingManager\TelegramBot;
 

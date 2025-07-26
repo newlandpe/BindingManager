@@ -104,6 +104,9 @@ class TelegramBot {
         $main = Main::getInstance();
         if ($main === null) return;
 
+        $chatId = 0;
+        $keyboardFactory = $this->keyboardFactory;
+
         if (isset($update['message']) && is_array($update['message'])) {
             $fromId = 0;
             if (isset($update['message']['from']) && is_array($update['message']['from'])) {
