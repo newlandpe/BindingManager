@@ -64,15 +64,15 @@ class CommandHandler {
         }
 
         /** @var array<int, string> $explodedText */
-        $explodedText = explode(' ', $text . ' ', 2);
-        list($commandFull, $argString) = $explodedText + ['', ''];
+        $explodedText = array_pad(explode(' ', $text, 2), 2, '');
+        list($commandFull, $argString) = $explodedText;
 
         $args = trim($argString) !== '' ? explode(' ', trim($argString)) : [];
 
         /** @var array<int, string> $explodedCommand */
-        $explodedCommand = explode('@', $commandFull, 2);
-        $commandNameRaw = $explodedCommand[0] ?? '';
-        $targetBot = $explodedCommand[1] ?? null;
+        $explodedCommand = array_pad(explode('@', $commandFull, 2), 2, '');
+        $commandNameRaw = $explodedCommand[0];
+        $targetBot = $explodedCommand[1] !== '' ? $explodedCommand[1] : null;
         $commandName = ltrim($commandNameRaw, '/');
 
         if ($targetBot !== null && strtolower($targetBot) !== strtolower($this->bot->getUsername())) {
