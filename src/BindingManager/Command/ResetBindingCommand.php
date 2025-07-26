@@ -16,7 +16,7 @@ class ResetBindingCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = (int)(($context->message['chat']['id'] ?? null) ?? 0);
+        $chatId = ($context->message['chat']['id'] ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
 

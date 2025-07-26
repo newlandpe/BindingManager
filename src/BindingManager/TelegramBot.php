@@ -103,7 +103,7 @@ class TelegramBot {
             $text = $update['message']['text'] ?? null;
 
             if ($fromId !== null && $text !== null) {
-                $state = $main->getUserState((int)$fromId);
+                $state = $main->getUserState($fromId);
                 if ($state === 'awaiting_nickname') {
                     $main->setUserState($fromId, null); // Reset state
                     $command = $this->commandHandler->findCommand('binding');

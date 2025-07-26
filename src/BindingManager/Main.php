@@ -106,7 +106,7 @@ class Main extends PluginBase {
 
         foreach ($updates as $update) {
             if (isset($update['update_id'])) {
-                $this->setOffset((int)($update['update_id'] + 1));
+                $this->setOffset($update['update_id'] + 1);
                 if ($this->bot !== null && $this->languageManager !== null && $this->dataProvider !== null) {
                     $this->bot->processUpdate($update, $this->languageManager, $this->dataProvider);
                 }
@@ -127,7 +127,7 @@ class Main extends PluginBase {
         if ($command->getName() === "confirm") {
             if (!$sender instanceof Player) {
                 $langManager = $this->getLanguageManager();
-                if ($langManager !== null) {
+                if (!is_null($langManager)) {
                     $sender->sendMessage($langManager->get("command-only-in-game"));
                 }
                 return true;
@@ -138,7 +138,7 @@ class Main extends PluginBase {
             }
             $dataProvider = $this->getDataProvider();
             $langManager = $this->getLanguageManager();
-            if ($dataProvider !== null && $langManager !== null) {
+            if (!is_null($dataProvider) && !is_null($langManager)) {
                 if ($dataProvider->confirmBinding($sender->getName(), $args[0])) {
                     $sender->sendMessage($langManager->get("command-confirm-success"));
                 } else {
@@ -149,7 +149,7 @@ class Main extends PluginBase {
         } elseif ($command->getName() === "tg") {
             if (!$sender instanceof Player) {
                 $langManager = $this->getLanguageManager();
-                if ($langManager !== null) {
+                if (!is_null($langManager)) {
                     $sender->sendMessage($langManager->get("command-only-in-game"));
                 }
                 return true;
@@ -173,7 +173,7 @@ class Main extends PluginBase {
                     $code = $args[2];
                     $dataProvider = $this->getDataProvider();
                     $langManager = $this->getLanguageManager();
-                    if ($dataProvider !== null && $langManager !== null) {
+                    if (!is_null($dataProvider) && !is_null($langManager)) {
                         if ($dataProvider->confirmUnbinding($sender->getName(), $code)) {
                             $sender->sendMessage($langManager->get("command-unbind-confirm-success"));
                         } else {
@@ -184,7 +184,7 @@ class Main extends PluginBase {
                 case "forceunbind":
                     if (!$sender->hasPermission("bindingmanager.command.forceunbind")) {
                         $langManager = $this->getLanguageManager();
-                        if ($langManager !== null) {
+                        if (!is_null($langManager)) {
                             $sender->sendMessage($langManager->get("command-no-permission"));
                         }
                         return true;
@@ -196,9 +196,9 @@ class Main extends PluginBase {
                     $playerName = $args[1];
                     $dataProvider = $this->getDataProvider();
                     $langManager = $this->getLanguageManager();
-                    if ($dataProvider !== null && $langManager !== null) {
+                    if (!is_null($dataProvider) && !is_null($langManager)) {
                         $telegramId = $dataProvider->getTelegramIdByPlayerName($playerName);
-                        if ($telegramId !== null) {
+                        if (!is_null($telegramId)) {
                             if ($dataProvider->unbindByTelegramId($telegramId)) {
                                 $sender->sendMessage($langManager->get("command-forceunbind-success", ["player_name" => $playerName]));
                             } else {
