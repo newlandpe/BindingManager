@@ -186,6 +186,7 @@ class YamlProvider implements DataProviderInterface {
 
             // Code is valid, perform unbinding
             return $this->unbindByTelegramId((int) ($data['telegram_id'] ?? 0));
+        }
         return false;
     }
 
