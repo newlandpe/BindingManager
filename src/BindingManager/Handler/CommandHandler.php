@@ -58,7 +58,10 @@ class CommandHandler {
      * @param DataProviderInterface $dataProvider
      */
     public function handle(array $message, LanguageManager $lang, DataProviderInterface $dataProvider): void {
-        $text = (string)($message['text'] ?? '');
+        $text = $message['text'] ?? null;
+        if (!is_string($text)) {
+            return;
+        }
         if ($text === '') {
             return;
         }
@@ -66,7 +69,7 @@ class CommandHandler {
             return;
         }
 
-        /** @var array<int, string> $explodedText */
+        /** @var array{0: string, 1: string} $explodedText */
         $explodedText = array_pad(explode(' ', $text, 2), 2, '');
         $commandFull = $explodedText[0];
         $argString = $explodedText[1];
@@ -76,7 +79,7 @@ class CommandHandler {
             $args = explode(' ', trim($argString));
         }
 
-        /** @var array<int, string> $explodedCommand */
+        /** @var array{0: string, 1: string} $explodedCommand */
         $explodedCommand = array_pad(explode('@', $commandFull, 2), 2, '');
         $commandNameRaw = $explodedCommand[0];
         $targetBot = $explodedCommand[1] !== '' ? $explodedCommand[1] : null;
