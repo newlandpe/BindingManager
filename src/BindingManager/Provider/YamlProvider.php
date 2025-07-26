@@ -26,7 +26,7 @@ class YamlProvider implements DataProviderInterface {
         $filePath = $main->getDataFolder() . ($config['file'] ?? 'bindings.yml');
         $this->dataFile = new Config($filePath, Config::YAML);
         $this->codeGenerator = $codeGenerator;
-        $this->bindingCodeTimeoutSeconds = ($config['binding_code_timeout_seconds'] ?? 300);
+        $this->bindingCodeTimeoutSeconds = (int)($config['binding_code_timeout_seconds'] ?? 300);
     }
 
     /**
@@ -49,7 +49,7 @@ class YamlProvider implements DataProviderInterface {
 
         // If pending, check if the code has expired
         if (isset($data['code']) && isset($data['timestamp'])) {
-            if (time() - (int)($data['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds) {
+            if (time() - (int)$data['timestamp'] > $this->bindingCodeTimeoutSeconds) {
                 // Code expired, remove the pending binding
                 $this->dataFile->remove((string)$telegramId);
                 $this->dataFile->save();
@@ -174,7 +174,7 @@ class YamlProvider implements DataProviderInterface {
         if (!is_array($data)) return false;
 
         if (isset($data['unbind_code']) && $data['unbind_code'] === $code) {
-            if (time() - ($data['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds) {
+            if (time() - (int)$data['unbind_timestamp'] > $this->bindingCodeTimeoutSeconds) {
                 // Code expired, clear unbind request
                 unset($data['unbind_code'], $data['unbind_timestamp']);
                 $this->dataFile->set((string)$telegramId, $data);

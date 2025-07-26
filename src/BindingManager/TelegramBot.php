@@ -59,13 +59,15 @@ class TelegramBot {
 
         curl_setopt_array($ch, $curlOptions);
         $response = curl_exec($ch);
-        curl_close($ch);
-
         if ($response === false) {
+            curl_close($ch);
             return false;
         }
 
         $data = json_decode($response, true);
+        if ($data === null) {
+            return false;
+        }
         if (is_array($data) && ($data['ok'] ?? false) === true && isset($data['result']['username'], $data['result']['id'])) {
             $this->username = $data['result']['username'];
             $this->id = (int)($data['result']['id'] ?? 0);
@@ -99,7 +101,10 @@ class TelegramBot {
         if ($main === null) return;
 
         if (isset($update['message']) && is_array($update['message'])) {
-            $fromId = (int)($update['message']['from']['id'] ?? 0);
+            $fromId = 0;
+            if (isset($update['message']['from']) && is_array($update['message']['from'])) {
+                $fromId = (int)($update['message']['from']['id'] ?? 0);
+            }
             $text = $update['message']['text'] ?? null;
 
             if ($fromId !== null && $text !== null) {
@@ -214,7 +219,10 @@ class TelegramBot {
                 $callback([]);
                 return;
             }
-            $data = json_decode($response, true);
+            $data = null;
+            if (is_string($response)) {
+                $data = json_decode($response, true);
+            }
             if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
                 Server::getInstance()->getLogger()->error("[BindingManager] getUpdates JSON decode error: " . json_last_error_msg());
                 $callback([]);

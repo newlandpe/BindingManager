@@ -17,8 +17,15 @@ class AdminPlayerInfoCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = ($context->message['chat']['id'] ?? 0);
-        $fromId = ($context->message['from']['id'] ?? 0);
+        $chatId = 0;
+        if (isset($context->message['chat']) && is_array($context->message['chat'])) {
+            $chatId = (int)($context->message['chat']['id'] ?? 0);
+        }
+
+        $fromId = 0;
+        if (isset($context->message['from']) && is_array($context->message['from'])) {
+            $fromId = (int)($context->message['from']['id'] ?? 0);
+        }
         $args = $context->args;
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
@@ -51,17 +58,17 @@ class AdminPlayerInfoCommand implements CommandInterface {
         $telegramId = null;
 
         if (isset($context->message['forward_from']) && is_array($context->message['forward_from']) && isset($context->message['forward_from']['id'])) {
-            $telegramId = $context->message['forward_from']['id'];
+            $telegramId = (int)$context->message['forward_from']['id'];
         } elseif (isset($context->message['reply_to_message']) && is_array($context->message['reply_to_message']) && isset($context->message['reply_to_message']['from']) && is_array($context->message['reply_to_message']['from']) && isset($context->message['reply_to_message']['from']['id'])) {
-            $telegramId = $context->message['reply_to_message']['from']['id'];
+            $telegramId = (int)$context->message['reply_to_message']['from']['id'];
         } elseif (isset($args[0]) && is_numeric($args[0])) {
-            $telegramId = $args[0];
+            $telegramId = (int)$args[0];
         } else {
             $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-usage"));
             return true;
         }
 
-        $playerName = $dataProvider->getBoundPlayerName($telegramId);
+        $playerName = $dataProvider->getBoundPlayerName((int)$telegramId);
 
         if ($playerName !== null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-success", [

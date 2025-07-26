@@ -52,11 +52,11 @@ class CallbackQueryHandler {
         }
 
         $data = $callbackQuery['data'] ?? null;
-        if ($data === null) {
-            return; // No data
+        if (!is_string($data)) { // Add this check
+            return; // No data or invalid data type
         }
 
-        $explodedData = explode(':', (string)$data);
+        $explodedData = explode(':', $data); // No need for (string) cast now
         if (count($explodedData) < 2) {
             return; // Invalid data format
         }
@@ -84,8 +84,15 @@ class CallbackQueryHandler {
     }
 
     private function handleMainMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = (($context->callbackQuery['message']['chat']['id'] ?? 0));
-        $fromId = (($context->callbackQuery['from']['id'] ?? 0));
+        $chatId = 0;
+        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
+            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        }
+
+        $fromId = 0;
+        if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
+            $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
+        }
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $bot = $context->bot;
@@ -110,8 +117,15 @@ class CallbackQueryHandler {
      * @param CallbackQueryContext $context
      */
     private function handleBindingMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = (($context->callbackQuery['message']['chat']['id'] ?? 0));
-        $fromId = (($context->callbackQuery['from']['id'] ?? 0));
+        $chatId = 0;
+        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
+            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        }
+
+        $fromId = 0;
+        if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
+            $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
+        }
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $bot = $context->bot;
@@ -129,7 +143,8 @@ class CallbackQueryHandler {
                 $commandHandler = $bot->getCommandHandler();
                 $command = $commandHandler->findCommand('myinfo');
                 if ($command !== null) {
-                    $commandContext = new CommandContext($bot, $lang, $dataProvider, $keyboardFactory, $context->callbackQuery['message'], [], $context->callbackQuery);
+                    $message = (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) ? $context->callbackQuery['message'] : [];
+                    $commandContext = new CommandContext($bot, $lang, $dataProvider, $keyboardFactory, $message, [], $context->callbackQuery);
                     $command->execute($commandContext);
                 }
                 break;
@@ -137,7 +152,8 @@ class CallbackQueryHandler {
                 $commandHandler = $bot->getCommandHandler();
                 $command = $commandHandler->findCommand('unbind');
                 if ($command !== null) {
-                    $commandContext = new CommandContext($bot, $lang, $dataProvider, $keyboardFactory, $context->callbackQuery['message'], [], $context->callbackQuery);
+                    $message = (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) ? $context->callbackQuery['message'] : [];
+                    $commandContext = new CommandContext($bot, $lang, $dataProvider, $keyboardFactory, $message, [], $context->callbackQuery);
                     $command->execute($commandContext);
                 }
                 break;
@@ -147,7 +163,11 @@ class CallbackQueryHandler {
                 $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}"));
                 break;
             case 'cancel':
-                $messageId = (($context->callbackQuery['message']['message_id'] ?? 0));
+                $messageId = 0;
+                if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
+                    $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+                }
+
                 if ($messageId !== 0) {
                     $dataProvider->unbindByTelegramId($fromId);
                     $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));

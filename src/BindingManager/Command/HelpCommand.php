@@ -18,7 +18,10 @@ class HelpCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = ($context->message['chat']['id'] ?? 0);
+        $chatId = 0;
+        if (isset($context->message['chat']) && is_array($context->message['chat'])) {
+            $chatId = (int)($context->message['chat']['id'] ?? 0);
+        }
         $lang = $context->lang;
 
         if ($chatId === 0) {

@@ -8,6 +8,9 @@ class CodeGenerator {
 
     private int $codeLengthBytes;
 
+    /**
+     * @param int<1, max> $codeLengthBytes
+     */
     public function __construct(int $codeLengthBytes) {
         $this->codeLengthBytes = $codeLengthBytes;
     }

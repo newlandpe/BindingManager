@@ -42,9 +42,6 @@ class AsyncRequestManager {
         } while ($status === CURLM_CALL_MULTI_PERFORM);
 
         while ($done = curl_multi_info_read($this->multi_handle)) {
-            if (!is_array($done)) {
-                continue;
-            }
             $ch = $done['handle'];
             if (!$ch instanceof \CurlHandle) {
                 continue;

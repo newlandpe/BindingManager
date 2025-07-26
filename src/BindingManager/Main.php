@@ -106,7 +106,7 @@ class Main extends PluginBase {
 
         foreach ($updates as $update) {
             if (isset($update['update_id'])) {
-                $this->setOffset($update['update_id'] + 1);
+                $this->setOffset((int)($update['update_id'] + 1));
                 if ($this->bot !== null && $this->languageManager !== null && $this->dataProvider !== null) {
                     $this->bot->processUpdate($update, $this->languageManager, $this->dataProvider);
                 }

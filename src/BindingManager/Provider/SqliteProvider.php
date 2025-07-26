@@ -26,7 +26,7 @@ class SqliteProvider implements DataProviderInterface {
         $filePath = $main->getDataFolder() . ($config['file'] ?? 'bindings.sqlite');
         $this->db = new SQLite3($filePath);
         $this->codeGenerator = $codeGenerator;
-        $this->bindingCodeTimeoutSeconds = ($config['binding_code_timeout_seconds'] ?? 300);
+        $this->bindingCodeTimeoutSeconds = (int)($config['binding_code_timeout_seconds'] ?? 300);
         $this->db->exec("CREATE TABLE IF NOT EXISTS bindings (
             telegram_id INTEGER PRIMARY KEY,
             player_name TEXT NOT NULL,
@@ -54,7 +54,7 @@ class SqliteProvider implements DataProviderInterface {
 
         // If pending, check if the code has expired
         if (isset($fetch['timestamp'])) {
-            if (time() - (int)($fetch['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds) {
+            if (time() - (int)$fetch['timestamp'] > $this->bindingCodeTimeoutSeconds) {
                 // Code expired, remove the pending binding
                 $this->unbindByTelegramId($telegramId);
                 return 0; // Treat as not bound
@@ -126,7 +126,7 @@ class SqliteProvider implements DataProviderInterface {
         $stmt->bindValue(':name', strtolower($playerName), SQLITE3_TEXT);
         $result = $stmt->execute();
         if ($result === false) return false;
-        return is_array($result->fetchArray()) && $result->fetchArray() !== null;
+        return is_array($result->fetchArray());
     }
 
     public function toggleNotifications(int $telegramId): bool {
@@ -187,7 +187,7 @@ class SqliteProvider implements DataProviderInterface {
         if ($result === false) return false;
         $data = $result->fetchArray(SQLITE3_ASSOC);
 
-        if (!is_array($data) || (time() - (int)($data['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
+        if (!is_array($data) || (is_array($data) && (time() - (int)($data['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds))) {
             // Code expired or not found, clear unbind request
             $updateStmt = $this->db->prepare("UPDATE bindings SET unbind_code = NULL, unbind_timestamp = NULL WHERE player_name = :name");
             if ($updateStmt === false) return false;

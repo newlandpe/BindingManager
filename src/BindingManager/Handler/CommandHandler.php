@@ -73,7 +73,7 @@ class CommandHandler {
             return;
         }
 
-        $chat = is_array($message['chat']) ? $message['chat'] : [];
+        $chat = (isset($message['chat']) && is_array($message['chat'])) ? $message['chat'] : [];
         $chatId = (int)($chat['id'] ?? 0);
         if ($chatId === 0) return;
 

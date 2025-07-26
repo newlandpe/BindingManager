@@ -22,11 +22,21 @@ class UnbindCommand implements CommandInterface {
         $fromId = 0;
 
         if ($context->callbackQuery !== null && is_array($context->callbackQuery)) {
-            $chatId = ($context->callbackQuery['message']['chat']['id'] ?? 0);
-            $fromId = ($context->callbackQuery['from']['id'] ?? 0);
+            if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
+                if (isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
+                    $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+                }
+            }
+            if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
+                $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
+            }
         } elseif (is_array($context->message)) {
-            $chatId = ($context->message['chat']['id'] ?? 0);
-            $fromId = ($context->message['from']['id'] ?? 0);
+            if (isset($context->message['chat']) && is_array($context->message['chat'])) {
+                $chatId = (int)($context->message['chat']['id'] ?? 0);
+            }
+            if (isset($context->message['from']) && is_array($context->message['from'])) {
+                $fromId = (int)($context->message['from']['id'] ?? 0);
+            }
         }
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
