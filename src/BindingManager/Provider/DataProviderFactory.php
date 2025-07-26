@@ -13,11 +13,11 @@ class DataProviderFactory {
      * @param array<string, mixed> $config
      */
     public static function create(array $config): DataProviderInterface {
-        $provider = strtolower((string) ($config['provider'] ?? ''));
-        $codeLengthBytes = (int) ($config['code_length_bytes'] ?? 3);
+        $provider = strtolower((string)($config['provider'] ?? ''));
+        $codeLengthBytes = (int)($config['code_length_bytes'] ?? 3);
         $codeGenerator = new CodeGenerator($codeLengthBytes);
 
-        $timeout = (int) ($config['binding_code_timeout_seconds'] ?? 300);
+        $timeout = (int)($config['binding_code_timeout_seconds'] ?? 300);
 
         $providers = [
             'json'   => JsonProvider::class,

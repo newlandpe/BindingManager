@@ -74,7 +74,7 @@ class CommandHandler {
         }
 
         $chat = is_array($message['chat']) ? $message['chat'] : [];
-        $chatId = (int) ($chat['id'] ?? 0);
+        $chatId = (int)($chat['id'] ?? 0);
         if ($chatId === 0) return;
 
         if (($chat['type'] ?? 'private') !== 'private' && $targetBot === null) {

@@ -31,7 +31,7 @@ class AsyncRequestManager {
             return;
         }
         curl_multi_add_handle($this->multi_handle, $ch);
-        $this->requests[(int) $ch] = ['handle' => $ch, 'callback' => $callback];
+        $this->requests[(int)$ch] = ['handle' => $ch, 'callback' => $callback];
     }
 
     public function tick(): void {
@@ -49,7 +49,7 @@ class AsyncRequestManager {
             if (!$ch instanceof \CurlHandle) {
                 continue;
             }
-            $requestInfo = $this->requests[(int) $ch] ?? null;
+            $requestInfo = $this->requests[(int)$ch] ?? null;
             if ($requestInfo === null) {
                 continue;
             }
@@ -61,7 +61,7 @@ class AsyncRequestManager {
 
             curl_multi_remove_handle($this->multi_handle, $ch);
             curl_close($ch);
-            unset($this->requests[(int) $ch]);
+            unset($this->requests[(int)$ch]);
         }
     }
 }

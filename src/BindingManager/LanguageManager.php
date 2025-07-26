@@ -40,7 +40,7 @@ class LanguageManager {
             $message = "Missing translation for key: $key";
         }
         foreach ($replacements as $placeholder => $value) {
-            $message = str_replace("{" . $placeholder . "}", (string) $value, $message);
+            $message = str_replace("{" . $placeholder . "}", (string)$value, $message);
         }
         return $message;
     }

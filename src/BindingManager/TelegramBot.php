@@ -103,9 +103,9 @@ class TelegramBot {
             $text = $update['message']['text'] ?? null;
 
             if ($fromId !== null && $text !== null) {
-                $state = $main->getUserState((int) $fromId);
+                $state = $main->getUserState((int)$fromId);
                 if ($state === 'awaiting_nickname') {
-                    $main->setUserState((int) $fromId, null); // Reset state
+                    $main->setUserState($fromId, null); // Reset state
                     $command = $this->commandHandler->findCommand('binding');
                     if ($command !== null) {
                         $keyboardFactory = new KeyboardFactory();

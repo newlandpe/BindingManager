@@ -18,8 +18,8 @@ class BindingCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = (int) (($context->message['chat']['id'] ?? null) ?? 0);
-        $fromId = (int) (($context->message['from']['id'] ?? null) ?? 0);
+        $chatId = (int)(($context->message['chat']['id'] ?? null) ?? 0);
+        $fromId = (int)(($context->message['from']['id'] ?? null) ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $keyboardFactory = $context->keyboardFactory;

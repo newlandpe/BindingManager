@@ -56,7 +56,7 @@ class CallbackQueryHandler {
             return; // No data
         }
 
-        $explodedData = explode(':', (string) $data);
+        $explodedData = explode(':', (string)$data);
         if (count($explodedData) < 2) {
             return; // Invalid data format
         }
@@ -84,8 +84,8 @@ class CallbackQueryHandler {
     }
 
     private function handleMainMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = (int) (($context->callbackQuery['message']['chat']['id'] ?? null) ?? 0);
-        $fromId = (int) (($context->callbackQuery['from']['id'] ?? null) ?? 0);
+        $chatId = (int)(($context->callbackQuery['message']['chat']['id'] ?? null) ?? 0);
+        $fromId = (int)(($context->callbackQuery['from']['id'] ?? null) ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $bot = $context->bot;
@@ -110,8 +110,8 @@ class CallbackQueryHandler {
      * @param CallbackQueryContext $context
      */
     private function handleBindingMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = (int) (($context->callbackQuery['message']['chat']['id'] ?? null) ?? 0);
-        $fromId = (int) (($context->callbackQuery['from']['id'] ?? null) ?? 0);
+        $chatId = (int)(($context->callbackQuery['message']['chat']['id'] ?? null) ?? 0);
+        $fromId = (int)(($context->callbackQuery['from']['id'] ?? null) ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $bot = $context->bot;
@@ -147,7 +147,7 @@ class CallbackQueryHandler {
                 $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}"));
                 break;
             case 'cancel':
-                $messageId = (int) (($context->callbackQuery['message']['message_id'] ?? null) ?? 0);
+                $messageId = (int)(($context->callbackQuery['message']['message_id'] ?? null) ?? 0);
                 if ($messageId !== 0) {
                     $dataProvider->unbindByTelegramId($fromId);
                     $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));

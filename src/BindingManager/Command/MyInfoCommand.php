@@ -25,11 +25,11 @@ class MyInfoCommand implements CommandInterface {
         $fromId = 0;
 
         if ($context->callbackQuery !== null && is_array($context->callbackQuery)) {
-            $chatId = (int) (($context->callbackQuery['message']['chat']['id'] ?? null) ?? 0);
-            $fromId = (int) (($context->callbackQuery['from']['id'] ?? null) ?? 0);
+            $chatId = (int)(($context->callbackQuery['message']['chat']['id'] ?? null) ?? 0);
+            $fromId = (int)(($context->callbackQuery['from']['id'] ?? null) ?? 0);
         } elseif (is_array($context->message)) {
-            $chatId = (int) (($context->message['chat']['id'] ?? null) ?? 0);
-            $fromId = (int) (($context->message['from']['id'] ?? null) ?? 0);
+            $chatId = (int)(($context->message['chat']['id'] ?? null) ?? 0);
+            $fromId = (int)(($context->message['from']['id'] ?? null) ?? 0);
         }
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
@@ -76,7 +76,7 @@ class MyInfoCommand implements CommandInterface {
         $allPlaceholders = array_merge($placeholders, $event->getPlaceholders());
 
         $infoText = preg_replace_callback('/\{([a-zA-Z0-9_]+)\}/', function (array $matches) use ($allPlaceholders): string {
-            return (string) ($allPlaceholders[$matches[1]] ?? '');
+            return (string)($allPlaceholders[$matches[1]] ?? '');
         }, $template);
 
         // Clean up any empty lines that might result from missing placeholders
