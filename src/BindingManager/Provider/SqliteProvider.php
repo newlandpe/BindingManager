@@ -26,7 +26,7 @@ class SqliteProvider implements DataProviderInterface {
         $filePath = $main->getDataFolder() . ($config['file'] ?? 'bindings.sqlite');
         $this->db = new SQLite3($filePath);
         $this->codeGenerator = $codeGenerator;
-        $this->bindingCodeTimeoutSeconds = $config['binding_code_timeout_seconds'] ?? 300;
+        $this->bindingCodeTimeoutSeconds = (int) ($config['binding_code_timeout_seconds'] ?? 300);
         $this->db->exec("CREATE TABLE IF NOT EXISTS bindings (
             telegram_id INTEGER PRIMARY KEY,
             player_name TEXT NOT NULL,
@@ -46,15 +46,15 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return 0;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        if ($fetch === false) return 0;
+        if (!is_array($fetch)) return 0;
 
-        if (($fetch['confirmed'] ?? 0)) {
+        if ((bool) ($fetch['confirmed'] ?? false)) {
             return 2; // Confirmed
         }
 
         // If pending, check if the code has expired
         if (isset($fetch['timestamp'])) {
-            if (time() - (int)$fetch['timestamp'] > 300) {
+            if (time() - (int) $fetch['timestamp'] > $this->bindingCodeTimeoutSeconds) {
                 // Code expired, remove the pending binding
                 $this->unbindByTelegramId($telegramId);
                 return 0; // Treat as not bound
@@ -101,7 +101,7 @@ class SqliteProvider implements DataProviderInterface {
         if ($result === false) return false;
         $data = $result->fetchArray(SQLITE3_ASSOC);
 
-        if ($data === false || (time() - $data['timestamp'] > 300)) {
+        if (!is_array($data) || (time() - (int) ($data['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
             return false; // Not found or expired
         }
 
@@ -144,7 +144,7 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return false;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return (($fetch['notifications_enabled'] ?? 0) == 1);
+        return is_array($fetch) && (($fetch['notifications_enabled'] ?? 0) == 1);
     }
 
     public function getTelegramIdByPlayerName(string $playerName): ?int {
@@ -154,7 +154,7 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return null;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return $fetch !== false ? (int)($fetch['telegram_id'] ?? null) : null;
+        return is_array($fetch) && $fetch !== false ? (int) ($fetch['telegram_id'] ?? null) : null;
     }
 
     public function initiateUnbinding(int $telegramId): ?string {
@@ -164,7 +164,7 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return null;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        if (!($fetch['confirmed'] ?? false)) {
+        if (!is_array($fetch) || !($fetch['confirmed'] ?? false)) {
             return null; // Not bound, cannot initiate unbinding
         }
 
@@ -187,7 +187,7 @@ class SqliteProvider implements DataProviderInterface {
         if ($result === false) return false;
         $data = $result->fetchArray(SQLITE3_ASSOC);
 
-        if ($data === false || (time() - ($data['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
+        if (!is_array($data) || (time() - (int) ($data['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
             // Code expired or not found, clear unbind request
             $updateStmt = $this->db->prepare("UPDATE bindings SET unbind_code = NULL, unbind_timestamp = NULL WHERE player_name = :name");
             if ($updateStmt === false) return false;
@@ -197,7 +197,7 @@ class SqliteProvider implements DataProviderInterface {
         }
 
         // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int)$data['telegram_id']);
+        return $this->unbindByTelegramId((int) $data['telegram_id']);
     }
 
     public function initiateReset(int $telegramId): ?string {
@@ -207,7 +207,7 @@ class SqliteProvider implements DataProviderInterface {
         $result = $stmt->execute();
         if ($result === false) return null;
         $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        if (!($fetch['confirmed'] ?? false)) {
+        if (!is_array($fetch) || !($fetch['confirmed'] ?? false)) {
             return null; // Not bound, cannot initiate reset
         }
 

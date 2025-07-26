@@ -47,7 +47,7 @@ class MysqlProvider implements DataProviderInterface {
         }
         $this->table = $table;
         $this->codeGenerator = $codeGenerator;
-        $this->bindingCodeTimeoutSeconds = $config['binding_code_timeout_seconds'] ?? 300;
+        $this->bindingCodeTimeoutSeconds = (int) ($config['binding_code_timeout_seconds'] ?? 300);
 
         try {
             $this->pdo = new PDO("mysql:host=$host;dbname=$database;charset=utf8mb4", $user, $password);
@@ -78,17 +78,17 @@ class MysqlProvider implements DataProviderInterface {
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($result === false) {
+        if (!is_array($result)) {
             return 0; // Not bound
         }
 
-        if ($result['confirmed']) {
+        if ((bool) ($result['confirmed'] ?? false)) {
             return 2; // Confirmed
         }
 
         // If pending, check if the code has expired
         if (isset($result['timestamp'])) {
-            if (time() - (int)$result['timestamp'] > 300) {
+            if (time() - (int) $result['timestamp'] > $this->bindingCodeTimeoutSeconds) {
                 // Code expired, remove the pending binding
                 $this->unbindByTelegramId($telegramId);
                 return 0; // Treat as not bound
@@ -131,7 +131,7 @@ class MysqlProvider implements DataProviderInterface {
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($result === false || (time() - $result['timestamp'] > 300)) {
+        if (!is_array($result) || (time() - (int) ($result['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
             return false; // Not found or expired
         }
 
@@ -167,7 +167,7 @@ class MysqlProvider implements DataProviderInterface {
         $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return (bool)($result['notifications_enabled'] ?? false);
+        return is_array($result) && (bool) ($result['notifications_enabled'] ?? false);
     }
 
     public function getTelegramIdByPlayerName(string $playerName): ?int {
@@ -175,7 +175,7 @@ class MysqlProvider implements DataProviderInterface {
         $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return (isset($result['telegram_id']) && is_numeric($result['telegram_id'])) ? (int)$result['telegram_id'] : null;
+        return is_array($result) && (isset($result['telegram_id']) && is_numeric($result['telegram_id'])) ? (int) $result['telegram_id'] : null;
     }
 
     public function initiateUnbinding(int $telegramId): ?string {
@@ -183,7 +183,7 @@ class MysqlProvider implements DataProviderInterface {
         $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($result === false || !($result['confirmed'] ?? false)) {
+        if (!is_array($result) || !($result['confirmed'] ?? false)) {
             return null; // Not bound, cannot initiate unbinding
         }
 
@@ -203,7 +203,7 @@ class MysqlProvider implements DataProviderInterface {
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($result === false || (time() - ($result['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
+        if (!is_array($result) || (time() - (int) ($result['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
             // Code expired or not found, clear unbind request
             $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET unbind_code = NULL, unbind_timestamp = NULL WHERE player_name = :player_name");
             $updateStmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
@@ -212,7 +212,7 @@ class MysqlProvider implements DataProviderInterface {
         }
 
         // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int)$result['telegram_id']);
+        return $this->unbindByTelegramId((int) $result['telegram_id']);
     }
 
     public function initiateReset(int $telegramId): ?string {
@@ -220,7 +220,7 @@ class MysqlProvider implements DataProviderInterface {
         $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($result === false || !($result['confirmed'] ?? false)) {
+        if (!is_array($result) || !($result['confirmed'] ?? false)) {
             return null; // Not bound, cannot initiate reset
         }
 

@@ -16,6 +16,7 @@ class CallbackQueryContext {
         public LanguageManager $lang,
         public DataProviderInterface $dataProvider,
         public KeyboardFactory $keyboardFactory,
+        /** @var array<string, mixed> */
         public array $callbackQuery
     ) {}
 }

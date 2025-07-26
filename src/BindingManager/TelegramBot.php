@@ -66,9 +66,9 @@ class TelegramBot {
         }
 
         $data = json_decode($response, true);
-        if ($data && isset($data['ok']) && $data['ok'] === true && isset($data['result']['username']) && isset($data['result']['id'])) {
+        if (is_array($data) && ($data['ok'] ?? false) === true && isset($data['result']['username'], $data['result']['id'])) {
             $this->username = $data['result']['username'];
-            $this->id = (int)$data['result']['id'];
+            $this->id = (int) $data['result']['id'];
             return true;
         }
 
@@ -215,11 +215,11 @@ class TelegramBot {
                 return;
             }
             $data = json_decode($response, true);
-            if ($data && isset($data['ok']) && $data['ok'] === true && isset($data['result'])) {
+            if (is_array($data) && ($data['ok'] ?? false) === true && isset($data['result'])) {
                 $callback($data['result']);
             } else {
                 // Handle potential errors from Telegram API
-                if(isset($data['description'])){
+                if(is_array($data) && isset($data['description'])){
                     Server::getInstance()->getLogger()->error("[BindingManager] getUpdates error: " . $data['description']);
                 }
                 $callback([]);

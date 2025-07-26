@@ -16,7 +16,7 @@ class ResetBindingCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = $context->message['chat']['id'];
+        $chatId = $context->message['chat']['id'] ?? null;
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
 
@@ -26,7 +26,7 @@ class ResetBindingCommand implements CommandInterface {
             return true;
         }
 
-        if ($context->message['chat']['type'] !== 'private') {
+        if (($context->message['chat']['type'] ?? null) !== 'private') {
             $this->bot->sendMessage($chatId, $lang->get("telegram-command-private-only"));
             return true;
         }

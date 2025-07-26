@@ -13,8 +13,8 @@ class DataProviderFactory {
      * @param array<string, mixed> $config
      */
     public static function create(array $config): DataProviderInterface {
-        $provider = strtolower($config['provider'] ?? '');
-        $codeLengthBytes = $config['code_length_bytes'] ?? 3;
+        $provider = strtolower((string) ($config['provider'] ?? ''));
+        $codeLengthBytes = (int) ($config['code_length_bytes'] ?? 3);
         $codeGenerator = new CodeGenerator($codeLengthBytes);
 
         $timeout = $config['binding_code_timeout_seconds'] ?? 300;

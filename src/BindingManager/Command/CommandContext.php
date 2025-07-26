@@ -16,8 +16,11 @@ class CommandContext {
         public LanguageManager $lang,
         public DataProviderInterface $dataProvider,
         public KeyboardFactory $keyboardFactory,
+        /** @var array<string, mixed> */
         public array $message,
+        /** @var string[] */
         public array $args,
+        /** @var array<string, mixed>|null */
         public ?array $callbackQuery = null
     ) {}
 }

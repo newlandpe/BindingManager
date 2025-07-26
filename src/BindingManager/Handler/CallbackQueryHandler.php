@@ -28,6 +28,7 @@ class CallbackQueryHandler {
      */
     public function handle(array $callbackQuery, LanguageManager $lang, DataProviderInterface $dataProvider): void {
         $message = $callbackQuery['message'] ?? null;
+        /** @var array<string, mixed>|null $message */
         if ($message === null) {
             return; // No message associated with the callback
         }
@@ -55,7 +56,7 @@ class CallbackQueryHandler {
             return; // No data
         }
 
-        $explodedData = explode(':', $data);
+        $explodedData = explode(':', (string) $data);
         if (count($explodedData) < 2) {
             return; // Invalid data format
         }
@@ -106,7 +107,7 @@ class CallbackQueryHandler {
     }
 
     /**
-     * @param array<string, mixed> $callbackQuery
+     * @param CallbackQueryContext $context
      */
     private function handleBindingMenu(CallbackQueryContext $context, string $action): void {
         $chatId = $context->callbackQuery['message']['chat']['id'] ?? 0;

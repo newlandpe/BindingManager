@@ -53,12 +53,12 @@ class CommandHandler {
     }
 
     /**
-     * @param array<string, mixed>
+     * @param array<string, mixed> $message
      * @param LanguageManager $lang
      * @param DataProviderInterface $dataProvider
      */
     public function handle(array $message, LanguageManager $lang, DataProviderInterface $dataProvider): void {
-        $text = $message['text'] ?? '';
+        $text = (string) ($message['text'] ?? '');
         if ($text === '' || $text[0] !== '/') {
             return;
         }
@@ -66,7 +66,7 @@ class CommandHandler {
         [$commandFull, $argString] = explode(' ', $text . ' ', 2);
         $args = trim($argString) !== '' ? explode(' ', trim($argString)) : [];
 
-        [$commandNameRaw, $targetBot] = array_pad(explode('@', $commandFull, 2), 2, null);
+        [$commandNameRaw, $targetBot] = array_pad(explode('@', (string) $commandFull, 2), 2, null);
         $commandName = ltrim($commandNameRaw, '/');
 
         if ($targetBot !== null && strtolower($targetBot) !== strtolower($this->bot->getUsername())) {

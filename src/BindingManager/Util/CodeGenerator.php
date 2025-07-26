@@ -13,6 +13,6 @@ class CodeGenerator {
     }
 
     public function generate(): string {
-        return bin2hex(random_bytes($this->codeLengthBytes));
+        return bin2hex(random_bytes((int) $this->codeLengthBytes));
     }
 }

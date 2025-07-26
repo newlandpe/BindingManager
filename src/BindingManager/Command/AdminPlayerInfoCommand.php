@@ -17,8 +17,8 @@ class AdminPlayerInfoCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = $context->message['chat']['id'];
-        $fromId = $context->message['from']['id'];
+        $chatId = $context->message['chat']['id'] ?? null;
+        $fromId = $context->message['from']['id'] ?? null;
         $args = $context->args;
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
@@ -32,13 +32,13 @@ class AdminPlayerInfoCommand implements CommandInterface {
         $isAllowed = false;
 
         $admins = $main->getConfig()->get('admins', []);
-        if (is_array($admins) && in_array($fromId, $admins)) {
+        if (is_array($admins) && in_array($fromId, $admins, true)) {
             $isAllowed = true;
         } else {
             $senderPlayerName = $dataProvider->getBoundPlayerName($fromId);
             if ($senderPlayerName !== null) {
                 $senderPlayer = Server::getInstance()->getOfflinePlayer($senderPlayerName);
-                if ($senderPlayer->isOp()) {
+                if ($senderPlayer !== null && $senderPlayer->isOp()) {
                     $isAllowed = true;
                 }
             }
@@ -52,11 +52,11 @@ class AdminPlayerInfoCommand implements CommandInterface {
         $telegramId = null;
 
         if (isset($context->message['forward_from']['id'])) {
-            $telegramId = (int)$context->message['forward_from']['id'];
+            $telegramId = (int) $context->message['forward_from']['id'];
         } elseif (isset($context->message['reply_to_message']['from']['id'])) {
-            $telegramId = (int)$context->message['reply_to_message']['from']['id'];
+            $telegramId = (int) $context->message['reply_to_message']['from']['id'];
         } elseif (isset($args[0]) && is_numeric($args[0])) {
-            $telegramId = (int)$args[0];
+            $telegramId = (int) $args[0];
         } else {
             $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-usage"));
             return true;

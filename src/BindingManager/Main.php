@@ -11,6 +11,7 @@ use BindingManager\Task\RequestTickTask;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\plugin\PluginBase;
+use pocketmine\player\Player;
 
 class Main extends PluginBase {
 
@@ -19,6 +20,7 @@ class Main extends PluginBase {
     private ?LanguageManager $languageManager = null;
     private ?TelegramBot $bot = null;
     private int $offset = 0;
+    /** @var array<int, string> */
     private array $userStates = [];
 
     public function onEnable(): void {
@@ -94,14 +96,17 @@ class Main extends PluginBase {
         });
     }
 
+    /**
+     * @param array<array<string, mixed>> $updates
+     */
     public function processUpdates(array $updates): void {
-        if (empty($updates)) {
+        if (count($updates) === 0) {
             return;
         }
 
         foreach ($updates as $update) {
             if (isset($update['update_id'])) {
-                $this->setOffset($update['update_id'] + 1);
+                $this->setOffset((int) ($update['update_id'] + 1));
                 if ($this->bot !== null && $this->languageManager !== null && $this->dataProvider !== null) {
                     $this->bot->processUpdate($update, $this->languageManager, $this->dataProvider);
                 }
