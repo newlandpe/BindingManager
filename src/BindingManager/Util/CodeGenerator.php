@@ -12,6 +12,7 @@ class CodeGenerator {
      * @param int<1, max> $codeLengthBytes
      */
     public function __construct(int $codeLengthBytes) {
+        assert($codeLengthBytes >= 1);
         $this->codeLengthBytes = $codeLengthBytes;
     }
 

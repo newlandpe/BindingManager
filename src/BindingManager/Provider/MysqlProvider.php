@@ -47,8 +47,8 @@ class MysqlProvider implements DataProviderInterface {
         }
         $this->table = $table;
         $this->codeGenerator = $codeGenerator;
-        /** @var int $timeout */
-        $this->bindingCodeTimeoutSeconds = (int)($config['binding_code_timeout_seconds'] ?? 300);
+        $timeoutRaw = $config['binding_code_timeout_seconds'] ?? 300;
+        $this->bindingCodeTimeoutSeconds = (int)$timeoutRaw;
 
         try {
             $this->pdo = new PDO("mysql:host=$host;dbname=$database;charset=utf8mb4", $user, $password);

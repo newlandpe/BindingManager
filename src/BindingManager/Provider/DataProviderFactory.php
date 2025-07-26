@@ -13,10 +13,12 @@ class DataProviderFactory {
      * @param array<string, mixed> $config
      */
     public static function create(array $config): DataProviderInterface {
+        $providerRaw = $config['provider'] ?? '';
         /** @var string $provider */
-        $provider = strtolower((string)($config['provider'] ?? ''));
+        $provider = strtolower((string)$providerRaw);
+        $codeLengthBytesRaw = $config['code_length_bytes'] ?? 3;
         /** @var int $codeLengthBytes */
-        $codeLengthBytes = (int)($config['code_length_bytes'] ?? 3);
+        $codeLengthBytes = (int)$codeLengthBytesRaw;
         if ($codeLengthBytes < 1) {
             $codeLengthBytes = 1; // Ensure it's at least 1
         }

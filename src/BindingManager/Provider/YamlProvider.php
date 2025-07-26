@@ -26,8 +26,8 @@ class YamlProvider implements DataProviderInterface {
         $filePath = $main->getDataFolder() . ($config['file'] ?? 'bindings.yml');
         $this->dataFile = new Config($filePath, Config::YAML);
         $this->codeGenerator = $codeGenerator;
-        /** @var int $timeout */
-        $this->bindingCodeTimeoutSeconds = (int)($config['binding_code_timeout_seconds'] ?? 300);
+        $timeoutRaw = $config['binding_code_timeout_seconds'] ?? 300;
+        $this->bindingCodeTimeoutSeconds = (int)$timeoutRaw;
     }
 
     /**

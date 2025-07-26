@@ -44,7 +44,7 @@ class TelegramBot {
         ];
 
         $forceResolveHosts = $this->config->getNested("network.force-resolve-hosts", []);
-        if (is_array($forceResolveHosts) && !empty($forceResolveHosts)) {
+        if (is_array($forceResolveHosts) && count($forceResolveHosts) > 0) {
             $resolveArray = [];
             foreach ($forceResolveHosts as $host => $ip) {
                 $resolveArray[] = "{$host}:443:{$ip}";
@@ -53,7 +53,7 @@ class TelegramBot {
         }
 
         $customCaBundle = $this->config->getNested("network.custom-ca-bundle", "");
-        if (is_string($customCaBundle) && !empty($customCaBundle)) {
+        if (is_string($customCaBundle) && $customCaBundle !== '') {
             $curlOptions[CURLOPT_CAINFO] = $customCaBundle;
         }
 
@@ -61,6 +61,10 @@ class TelegramBot {
         $response = curl_exec($ch);
         if ($response === false) {
             curl_close($ch);
+            return false;
+        }
+
+        if (!is_string($response)) {
             return false;
         }
 
@@ -107,7 +111,7 @@ class TelegramBot {
             }
             $text = $update['message']['text'] ?? null;
 
-            if ($fromId !== null && $text !== null) {
+            if ($fromId !== 0 && $text !== null) {
                 $state = $main->getUserState($fromId);
                 if ($state === 'awaiting_nickname') {
                     $main->setUserState($fromId, null); // Reset state
@@ -185,7 +189,7 @@ class TelegramBot {
         ];
 
         $forceResolveHosts = $this->config->getNested("network.force-resolve-hosts", []);
-        if (is_array($forceResolveHosts) && !empty($forceResolveHosts)) {
+        if (is_array($forceResolveHosts) && count($forceResolveHosts) > 0) {
             $resolveArray = [];
             foreach ($forceResolveHosts as $host => $ip) {
                 $resolveArray[] = "{$host}:443:{$ip}";
@@ -194,7 +198,7 @@ class TelegramBot {
         }
 
         $customCaBundle = $this->config->getNested("network.custom-ca-bundle", "");
-        if (is_string($customCaBundle) && !empty($customCaBundle)) {
+        if (is_string($customCaBundle) && $customCaBundle !== '') {
             $curlOptions[CURLOPT_CAINFO] = $customCaBundle;
         }
 
@@ -232,7 +236,7 @@ class TelegramBot {
                 $callback($data['result']);
             } else {
                 // Handle potential errors from Telegram API
-                if(is_array($data) && isset($data['description'])){
+                if(isset($data['description'])){
                     Server::getInstance()->getLogger()->error("[BindingManager] getUpdates error: " . $data['description']);
                 }
                 $callback([]);

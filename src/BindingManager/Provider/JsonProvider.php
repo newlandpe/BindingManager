@@ -26,8 +26,8 @@ class JsonProvider implements DataProviderInterface {
         $filePath = $main->getDataFolder() . ($config['file'] ?? 'bindings.json');
         $this->dataFile = new Config($filePath, Config::JSON);
         $this->codeGenerator = $codeGenerator;
-        /** @var int $timeout */
-        $this->bindingCodeTimeoutSeconds = (int)($config['binding_code_timeout_seconds'] ?? 300);
+        $timeoutRaw = $config['binding_code_timeout_seconds'] ?? 300;
+        $this->bindingCodeTimeoutSeconds = (int)$timeoutRaw;
     }
 
     public function getBindingStatus(int $telegramId): int {
