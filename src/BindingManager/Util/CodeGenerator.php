@@ -6,6 +6,7 @@ namespace BindingManager\Util;
 
 class CodeGenerator {
 
+    /** @var int<1, max> */
     private int $codeLengthBytes;
 
     /**

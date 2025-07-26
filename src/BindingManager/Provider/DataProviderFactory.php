@@ -13,8 +13,8 @@ class DataProviderFactory {
      * @param array<string, mixed> $config
      */
     public static function create(array $config): DataProviderInterface {
-        $provider = strtolower(is_string($config['provider']) ? $config['provider'] : '');
-        $codeLengthBytes = is_int($config['code_length_bytes']) ? $config['code_length_bytes'] : 3;
+        $provider = strtolower(array_key_exists('provider', $config) && is_string($config['provider']) ? $config['provider'] : '');
+        $codeLengthBytes = array_key_exists('code_length_bytes', $config) && is_int($config['code_length_bytes']) ? $config['code_length_bytes'] : 3;
         if ($codeLengthBytes < 1) {
             $codeLengthBytes = 1; // Ensure it's at least 1
         }

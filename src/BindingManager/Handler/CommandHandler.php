@@ -63,8 +63,9 @@ class CommandHandler {
             return;
         }
 
+        /** @var array<int, string> $explodedText */
         $explodedText = explode(' ', $text . ' ', 2);
-        $commandFull = (is_array($explodedText) && isset($explodedText[0])) ? $explodedText[0] : '';
+        $commandFull = $explodedText[0] ?? '';
         $argString = $explodedText[1] ?? '';
 
         $args = trim($argString) !== '' ? explode(' ', trim($argString)) : [];

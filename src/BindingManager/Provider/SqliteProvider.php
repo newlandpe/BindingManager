@@ -26,7 +26,7 @@ class SqliteProvider implements DataProviderInterface {
         $filePath = $main->getDataFolder() . ($config['file'] ?? 'bindings.sqlite');
         $this->db = new SQLite3($filePath);
         $this->codeGenerator = $codeGenerator;
-        $this->bindingCodeTimeoutSeconds = is_int($config['binding_code_timeout_seconds']) ? $config['binding_code_timeout_seconds'] : 300;
+        $this->bindingCodeTimeoutSeconds = array_key_exists('binding_code_timeout_seconds', $config) && is_int($config['binding_code_timeout_seconds']) ? $config['binding_code_timeout_seconds'] : 300;
         $this->db->exec("CREATE TABLE IF NOT EXISTS bindings (
             telegram_id INTEGER PRIMARY KEY,
             player_name TEXT NOT NULL,
