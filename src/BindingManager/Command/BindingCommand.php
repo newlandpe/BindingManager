@@ -18,8 +18,8 @@ class BindingCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = (int) ($context->message['chat']['id'] ?? 0);
-        $fromId = (int) ($context->message['from']['id'] ?? 0);
+        $chatId = (int) (($context->message['chat']['id'] ?? null) ?? 0);
+        $fromId = (int) (($context->message['from']['id'] ?? null) ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
         $keyboardFactory = $context->keyboardFactory;
@@ -30,7 +30,7 @@ class BindingCommand implements CommandInterface {
         }
 
         if (!isset($args[0]) || $args[0] === '') {
-            $bindingStatus = $dataProvider->getBindingStatus((int) $fromId);
+            $bindingStatus = $dataProvider->getBindingStatus($fromId);
             $statusText = "";
             $buttons = [];
             switch ($bindingStatus) {
@@ -52,10 +52,10 @@ class BindingCommand implements CommandInterface {
         }
 
         $playerName = $args[0];
-        $code = $dataProvider->initiateBinding($playerName, (int) $fromId);
+        $code = $dataProvider->initiateBinding($playerName, $fromId);
 
         if ($code === null) {
-            if ($dataProvider->getBindingStatus((int) $fromId) !== 0) {
+            if ($dataProvider->getBindingStatus($fromId) !== 0) {
                 $this->bot->sendMessage($chatId, $lang->get('telegram-binding-already-bound'));
             } else {
                 $this->bot->sendMessage($chatId, $lang->get('telegram-binding-player-already-bound'));

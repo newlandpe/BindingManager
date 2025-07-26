@@ -58,7 +58,7 @@ class CommandHandler {
      * @param DataProviderInterface $dataProvider
      */
     public function handle(array $message, LanguageManager $lang, DataProviderInterface $dataProvider): void {
-        $text = (string) ($message['text'] ?? '');
+        $text = $message['text'] ?? '';
         if ($text === '' || $text[0] !== '/') {
             return;
         }

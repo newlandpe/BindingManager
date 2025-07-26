@@ -68,7 +68,7 @@ class TelegramBot {
         $data = json_decode($response, true);
         if (is_array($data) && ($data['ok'] ?? false) === true && isset($data['result']['username'], $data['result']['id'])) {
             $this->username = $data['result']['username'];
-            $this->id = (int) $data['result']['id'];
+            $this->id = (int)($data['result']['id'] ?? 0);
             return true;
         }
 
@@ -99,7 +99,7 @@ class TelegramBot {
         if ($main === null) return;
 
         if (isset($update['message']) && is_array($update['message'])) {
-            $fromId = $update['message']['from']['id'] ?? null;
+            $fromId = (int)($update['message']['from']['id'] ?? 0);
             $text = $update['message']['text'] ?? null;
 
             if ($fromId !== null && $text !== null) {
@@ -206,7 +206,7 @@ class TelegramBot {
         $params = [
             'offset' => $main->getOffset(),
             'timeout' => 30, // Use long-polling
-            'allowed_updates' => json_encode(['message', 'callback_query'], JSON_THROW_ON_ERROR)
+            'allowed_updates' => json_encode(['message', 'callback_query'])
         ];
         $this->request('getUpdates', $params, function($response) use ($callback) {
             if ($response === null) {
@@ -215,7 +215,12 @@ class TelegramBot {
                 return;
             }
             $data = json_decode($response, true);
-            if (is_array($data) && ($data['ok'] ?? false) === true && isset($data['result'])) {
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+                Server::getInstance()->getLogger()->error("[BindingManager] getUpdates JSON decode error: " . json_last_error_msg());
+                $callback([]);
+                return;
+            }
+            if (($data['ok'] ?? false) === true && isset($data['result'])) {
                 $callback($data['result']);
             } else {
                 // Handle potential errors from Telegram API

@@ -17,8 +17,8 @@ class AdminPlayerInfoCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = (int) ($context->message['chat']['id'] ?? 0);
-        $fromId = (int) ($context->message['from']['id'] ?? 0);
+        $chatId = (int) (($context->message['chat']['id'] ?? null) ?? 0);
+        $fromId = (int) (($context->message['from']['id'] ?? null) ?? 0);
         $args = $context->args;
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
@@ -35,7 +35,7 @@ class AdminPlayerInfoCommand implements CommandInterface {
         if (is_array($admins) && in_array($fromId, $admins, true)) {
             $isAllowed = true;
         } else {
-            $senderPlayerName = $dataProvider->getBoundPlayerName($fromId);
+            $senderPlayerName = $dataProvider->getBoundPlayerName((int) $fromId);
             if ($senderPlayerName !== null) {
                 if (Server::getInstance()->isOp($senderPlayerName)) {
                     $isAllowed = true;
@@ -61,7 +61,7 @@ class AdminPlayerInfoCommand implements CommandInterface {
             return true;
         }
 
-        $playerName = $dataProvider->getBoundPlayerName($telegramId);
+        $playerName = $dataProvider->getBoundPlayerName((int) $telegramId);
 
         if ($playerName !== null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-success", [

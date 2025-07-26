@@ -152,7 +152,7 @@ class MysqlProvider implements DataProviderInterface {
         $stmt = $this->pdo->prepare("SELECT 1 FROM `{$this->table}` WHERE player_name = :player_name AND confirmed = 1");
         $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
         $stmt->execute();
-        return $stmt->fetchColumn() !== false;
+        return $stmt->fetchColumn() !== false && $stmt->fetchColumn() !== null;
     }
 
     public function toggleNotifications(int $telegramId): bool {

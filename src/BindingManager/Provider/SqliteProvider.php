@@ -54,7 +54,7 @@ class SqliteProvider implements DataProviderInterface {
 
         // If pending, check if the code has expired
         if (isset($fetch['timestamp'])) {
-            if (time() - (int) $fetch['timestamp'] > $this->bindingCodeTimeoutSeconds) {
+            if (time() - (int)($fetch['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds) {
                 // Code expired, remove the pending binding
                 $this->unbindByTelegramId($telegramId);
                 return 0; // Treat as not bound
@@ -126,7 +126,7 @@ class SqliteProvider implements DataProviderInterface {
         $stmt->bindValue(':name', strtolower($playerName), SQLITE3_TEXT);
         $result = $stmt->execute();
         if ($result === false) return false;
-        return is_array($result->fetchArray());
+        return is_array($result->fetchArray()) && $result->fetchArray() !== null;
     }
 
     public function toggleNotifications(int $telegramId): bool {

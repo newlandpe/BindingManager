@@ -16,7 +16,7 @@ class ResetBindingCommand implements CommandInterface {
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = (int) ($context->message['chat']['id'] ?? 0);
+        $chatId = (int) (($context->message['chat']['id'] ?? null) ?? 0);
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
 
@@ -31,7 +31,7 @@ class ResetBindingCommand implements CommandInterface {
             return true;
         }
 
-        $code = $dataProvider->initiateReset((int) $chatId);
+        $code = $dataProvider->initiateReset($chatId);
 
         if ($code !== null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-reset-code", ["code" => $code]));

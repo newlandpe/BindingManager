@@ -25,11 +25,11 @@ class MyInfoCommand implements CommandInterface {
         $fromId = 0;
 
         if ($context->callbackQuery !== null && is_array($context->callbackQuery)) {
-            $chatId = (int) ($context->callbackQuery['message']['chat']['id'] ?? 0);
-            $fromId = (int) ($context->callbackQuery['from']['id'] ?? 0);
+            $chatId = (int) (($context->callbackQuery['message']['chat']['id'] ?? null) ?? 0);
+            $fromId = (int) (($context->callbackQuery['from']['id'] ?? null) ?? 0);
         } elseif (is_array($context->message)) {
-            $chatId = (int) ($context->message['chat']['id'] ?? 0);
-            $fromId = (int) ($context->message['from']['id'] ?? 0);
+            $chatId = (int) (($context->message['chat']['id'] ?? null) ?? 0);
+            $fromId = (int) (($context->message['from']['id'] ?? null) ?? 0);
         }
         $lang = $context->lang;
         $dataProvider = $context->dataProvider;
@@ -38,12 +38,12 @@ class MyInfoCommand implements CommandInterface {
             return true;
         }
 
-        if ($dataProvider->getBindingStatus((int) $fromId) !== 2) {
+        if ($dataProvider->getBindingStatus($fromId) !== 2) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-myinfo-not-bound"));
             return true;
         }
 
-        $playerName = $dataProvider->getBoundPlayerName((int) $fromId);
+        $playerName = $dataProvider->getBoundPlayerName($fromId);
         if ($playerName === null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-myinfo-not-bound"));
             return true;

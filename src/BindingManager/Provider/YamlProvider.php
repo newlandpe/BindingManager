@@ -49,7 +49,7 @@ class YamlProvider implements DataProviderInterface {
 
         // If pending, check if the code has expired
         if (isset($data['code']) && isset($data['timestamp'])) {
-            if (time() - (int) $data['timestamp'] > $this->bindingCodeTimeoutSeconds) {
+            if (time() - (int)($data['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds) {
                 // Code expired, remove the pending binding
                 $this->dataFile->remove((string) $telegramId);
                 $this->dataFile->save();
