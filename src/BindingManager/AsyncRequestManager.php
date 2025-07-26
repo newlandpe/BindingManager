@@ -51,9 +51,17 @@ class AsyncRequestManager {
                 continue;
             }
 
+            $error = curl_errno($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $response = curl_multi_getcontent($ch);
+
             if ($requestInfo['callback'] !== null) {
-                ($requestInfo['callback'])($response);
+                if ($error !== CURLE_OK || $httpCode !== 200) {
+                    Server::getInstance()->getLogger()->debug("[BindingManager] cURL request failed with error {$error} and HTTP code {$httpCode}. Response: " . ($response === false ? "false" : $response));
+                    ($requestInfo['callback'])(null); // Pass null to indicate failure
+                } else {
+                    ($requestInfo['callback'])($response);
+                }
             }
 
             curl_multi_remove_handle($this->multi_handle, $ch);

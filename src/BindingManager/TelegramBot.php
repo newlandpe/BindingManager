@@ -223,12 +223,14 @@ class TelegramBot {
                 $callback([]);
                 return;
             }
-            $data = null;
-            if (is_string($response)) {
-                $data = json_decode($response, true);
+            if (!is_string($response)) {
+                Server::getInstance()->getLogger()->error("[BindingManager] getUpdates received non-string response: " . gettype($response));
+                $callback([]);
+                return;
             }
+            $data = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
-                Server::getInstance()->getLogger()->error("[BindingManager] getUpdates JSON decode error: " . json_last_error_msg());
+                Server::getInstance()->getLogger()->error("[BindingManager] getUpdates JSON decode error: " . json_last_error_msg() . ". Response: " . $response);
                 $callback([]);
                 return;
             }

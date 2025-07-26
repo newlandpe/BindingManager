@@ -119,7 +119,7 @@ class Main extends PluginBase {
     }
 
     public function setOffset(int $offset): void {
-        $this->getLogger()->info("Setting new offset: " . $offset);
+        $this->getLogger()->debug("Setting new offset: " . $offset);
         $this->offset = $offset;
     }
 
