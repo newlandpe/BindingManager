@@ -79,6 +79,9 @@ class CallbackQueryHandler {
             case 'binding':
                 $this->handleBindingMenu($context, $action);
                 break;
+            case 'unbind':
+                $this->handleUnbindMenu($context, $action);
+                break;
             // No default case: we simply ignore unknown menus
         }
     }
@@ -169,8 +172,46 @@ class CallbackQueryHandler {
                 }
 
                 if ($messageId !== 0) {
-                    $dataProvider->unbindByTelegramId($fromId);
+                    $main = Main::getInstance();
+                    if ($main !== null) {
+                        $main->setUserState($fromId, null); // Reset state
+                    }
                     $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));
+                }
+                break;
+        }
+    }
+
+    /**
+     * @param CallbackQueryContext $context
+     */
+    private function handleUnbindMenu(CallbackQueryContext $context, string $action): void {
+        $chatId = 0;
+        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
+            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        }
+
+        $fromId = 0;
+        if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
+            $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
+        }
+        $lang = $context->lang;
+        $bot = $context->bot;
+        $keyboardFactory = $context->keyboardFactory;
+
+        switch ($action) {
+            case 'cancel':
+                $messageId = 0;
+                if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
+                    $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+                }
+
+                if ($messageId !== 0) {
+                    $main = Main::getInstance();
+                    if ($main !== null) {
+                        $main->setUserState($fromId, null); // Reset state
+                    }
+                    $bot->editMessageText($chatId, $messageId, $lang->get('telegram-unbind-cancelled'));
                 }
                 break;
         }

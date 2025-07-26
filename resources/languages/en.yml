@@ -58,6 +58,7 @@ keyboard-binding-menu-notifications: "🔔 Notifications"
 keyboard-binding-menu-unbind: "🔌 Unbind"
 keyboard-binding-menu-bind: "🔗 Bind Account"
 keyboard-cancel-binding: "❌ Cancel Binding"
+keyboard-cancel-unbind: "❌ Cancel Unbinding"
 
 # Binding Menu
 telegram-binding-menu-message: "Select an option for binding management:"

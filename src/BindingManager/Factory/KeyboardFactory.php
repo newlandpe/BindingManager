@@ -71,4 +71,20 @@ class KeyboardFactory {
             ]
         ];
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function createUnbindCancelKeyboard(): array {
+        if ($this->lang === null) {
+            throw new \RuntimeException('LanguageManager not available.');
+        }
+        return [
+            'inline_keyboard' => [
+                [['text' => $this->lang->get('keyboard-cancel-unbind'), 'callback_data' => 'unbind:cancel']]
+            ]
+        ];
+    }
+
+    
 }

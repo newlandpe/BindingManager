@@ -58,6 +58,7 @@ keyboard-binding-menu-notifications: "🔔 Сповіщення"
 keyboard-binding-menu-unbind: "🔌 Відв'язати"
 keyboard-binding-menu-bind: "🔗 Прив'язати акаунт"
 keyboard-cancel-binding: "❌ Скасувати прив'язку"
+keyboard-cancel-unbind: "❌ Скасувати відв'язку"
 
 # Binding Menu
 telegram-binding-menu-message: "Виберіть опцію для керування прив'язкою:"

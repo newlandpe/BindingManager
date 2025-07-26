@@ -55,7 +55,7 @@ class UnbindCommand implements CommandInterface {
         }
 
         $main->setUserState($fromId, 'awaiting_unbind_confirm');
-        $this->bot->sendMessage($chatId, $lang->get("telegram-unbind-code", ['code' => $code]), $keyboardFactory->createCancelKeyboard());
+        $this->bot->sendMessage($chatId, $lang->get("telegram-unbind-code", ['code' => $code]), $keyboardFactory->createUnbindCancelKeyboard());
         return true;
     }
 }
