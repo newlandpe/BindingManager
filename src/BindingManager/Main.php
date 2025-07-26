@@ -15,6 +15,9 @@ use pocketmine\player\Player;
 
 class Main extends PluginBase {
 
+    // Dummy change to trigger Poggit CI build
+
+
     private static ?self $instance = null;
     private ?DataProviderInterface $dataProvider = null;
     private ?LanguageManager $languageManager = null;
