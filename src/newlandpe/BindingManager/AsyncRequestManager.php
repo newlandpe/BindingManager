@@ -56,8 +56,8 @@ class AsyncRequestManager {
             $response = curl_multi_getcontent($ch);
 
             if ($requestInfo['callback'] !== null) {
-                if ($error !== CURLE_OK || $httpCode !== 200) {
-                    Server::getInstance()->getLogger()->error("[BindingManager] cURL request failed with error {$error} and HTTP code {$httpCode}. Response: " . ($response === null ? 'null' : $response));
+                if ($response === null || $response === "" || $error !== CURLE_OK || $httpCode !== 200) {
+                    Server::getInstance()->getLogger()->debug("[NewLandBinding] cURL request failed with error {$error} and HTTP code {$httpCode}");
                     ($requestInfo['callback'])(null); // Pass null to indicate failure
                 } else {
                     ($requestInfo['callback'])($response);
