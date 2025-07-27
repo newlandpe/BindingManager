@@ -45,12 +45,13 @@ class MysqlProvider implements DataProviderInterface {
         if (!is_string($table)) {
             throw new InvalidArgumentException("Invalid table type.");
         }
+        $port = isset($config['port']) && is_numeric($config['port']) ? (int)$config['port'] : 3306;
         $this->table = $table;
         $this->codeGenerator = $codeGenerator;
         $this->bindingCodeTimeoutSeconds = array_key_exists('binding_code_timeout_seconds', $config) && is_int($config['binding_code_timeout_seconds']) ? $config['binding_code_timeout_seconds'] : 300;
 
         try {
-            $this->pdo = new PDO("mysql:host=$host;dbname=$database;charset=utf8mb4", $user, $password);
+            $this->pdo = new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4", $user, $password);
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->createTable();
         } catch (PDOException $e) {
