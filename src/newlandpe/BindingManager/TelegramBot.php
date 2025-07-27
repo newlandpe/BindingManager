@@ -40,7 +40,7 @@ class TelegramBot {
         $curlOptions = [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 10,
+            CURLOPT_TIMEOUT => 10
         ];
 
         $forceResolveHosts = $this->config->getNested("network.force-resolve-hosts", []);
@@ -199,7 +199,7 @@ class TelegramBot {
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POSTFIELDS => $params,
-            CURLOPT_TIMEOUT => 10,
+            CURLOPT_TIMEOUT => $method === 'getUpdates' ? 35 : 10
         ];
 
         $forceResolveHosts = $this->config->getNested("network.force-resolve-hosts", []);
