@@ -137,8 +137,10 @@ class SqliteProvider implements DataProviderInterface {
         if ($this->db->changes() > 0) {
             if ($playerName !== null) {
                 $player = Server::getInstance()->getOfflinePlayer($playerName);
-                $event = new AccountUnboundEvent($player, $telegramId);
-                $event->call();
+                if ($player !== null) {
+                    $event = new AccountUnboundEvent($player, $telegramId);
+                    $event->call();
+                }
             }
             return true;
         }
