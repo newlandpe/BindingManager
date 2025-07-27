@@ -6,7 +6,6 @@ namespace newlandpe\BindingManager\Handler;
 
 use newlandpe\BindingManager\Command\CommandContext;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
-use newlandpe\BindingManager\Handler\CallbackQueryHandler;
 use newlandpe\BindingManager\Handler\CommandHandler;
 use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Main;
