@@ -184,7 +184,7 @@ class Main extends PluginBase {
                     }
                     return true;
                 case "forceunbind":
-                    if (!$sender->hasPermission("newlandbinding.command.forceunbind")) {
+                    if (!$sender->hasPermission("bindingmanager.command.forceunbind")) {
                         $langManager = $this->getLanguageManager();
                         if (!is_null($langManager)) {
                             $sender->sendMessage($langManager->get("command-no-permission"));

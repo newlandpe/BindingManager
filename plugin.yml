@@ -21,6 +21,6 @@ permissions:
   bindingmanager.command.tg:
     description: "Allows players to manage their Telegram bindings (e.g., unbind)."
     default: true
-  newlandbinding.command.forceunbind:
+  bindingmanager.command.forceunbind:
     description: "Allows administrators to force unbind a player's Telegram account."
     default: op
