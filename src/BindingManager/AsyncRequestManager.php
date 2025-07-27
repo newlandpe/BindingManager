@@ -57,13 +57,7 @@ class AsyncRequestManager {
 
             if ($requestInfo['callback'] !== null) {
                 if ($error !== CURLE_OK || $httpCode !== 200) {
-                    $responseText = 'null';
-                    if (is_string($response)) {
-                        $responseText = $response;
-                    } elseif ($response === false) {
-                        $responseText = 'false';
-                    }
-                    Server::getInstance()->getLogger()->debug("[BindingManager] cURL request failed with error {$error} and HTTP code {$httpCode}. Response: " . $responseText);
+                    Server::getInstance()->getLogger()->debug("[BindingManager] cURL request failed with error {$error} and HTTP code {$httpCode}. Response: " . ($response ?? 'null'));
                     ($requestInfo['callback'])(null); // Pass null to indicate failure
                 } else {
                     ($requestInfo['callback'])($response);
