@@ -1,9 +1,10 @@
 name: BindingManager
 version: 1.0.0
-main: BindingManager\Main
+main: newlandpe\BindingManager\Main
 api: 5.0.0
 author: ChernegaSergiy
 description: "A plugin to bind player accounts to Telegram for authentication and other purposes."
+
 commands:
   confirm:
     description: "Confirm your account binding."
@@ -20,6 +21,6 @@ permissions:
   bindingmanager.command.tg:
     description: "Allows players to manage their Telegram bindings (e.g., unbind)."
     default: true
-  bindingmanager.command.forceunbind:
+  newlandbinding.command.forceunbind:
     description: "Allows administrators to force unbind a player's Telegram account."
     default: op

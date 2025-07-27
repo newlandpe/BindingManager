@@ -26,7 +26,7 @@ BindingManager makes it easy to integrate with your own plugins. You can check i
 
 ```php
 $bindingManager = $this->getServer()->getPluginManager()->getPlugin("BindingManager");
-if ($bindingManager instanceof \BindingManager\Main) {
+if ($bindingManager instanceof \newlandpe\BindingManager\Main) {
     $isBound = $bindingManager->getDataProvider()->isPlayerBound($player->getName());
     if ($isBound) {
         // Player is bound, do something...
@@ -58,7 +58,7 @@ telegram-myinfo-online: |
 
 namespace YourNamespace;
 
-use BindingManager\Event\PlayerDataInfoEvent;
+use newlandpe\BindingManager\Event\PlayerDataInfoEvent;
 use pocketmine\event\Listener;
 
 class InfoListener implements Listener {
@@ -95,7 +95,7 @@ $this->getServer()->getPluginManager()->registerEvents(new InfoListener(), $this
 You can easily send notifications to a player's Telegram account from your own plugin by calling the `SendNotificationEvent`.
 
 ```php
-use BindingManager\Event\SendNotificationEvent;
+use newlandpe\BindingManager\Event\SendNotificationEvent;
 use pocketmine\player\Player;
 
 // Get the player object
