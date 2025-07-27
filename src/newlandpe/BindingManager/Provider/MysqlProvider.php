@@ -139,23 +139,23 @@ class MysqlProvider implements DataProviderInterface {
             return false; // Not found or expired
         }
 
+        $player = Server::getInstance()->getPlayerExact($playerName);
+        if ($player !== null) {
+            $telegramId = (int)($result['telegram_id'] ?? 0);
+            if($telegramId !== 0){
+                $event = new AccountBoundEvent($player, $telegramId);
+                $event->call();
+                if ($event->isCancelled()) {
+                    return false;
+                }
+            }
+        }
+
         $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET confirmed = 1, code = NULL, timestamp = NULL WHERE player_name = :player_name");
         $updateStmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
         $updateStmt->execute();
 
-        if ($updateStmt->rowCount() > 0) {
-            $player = Server::getInstance()->getPlayerExact($playerName);
-            if ($player !== null) {
-                $telegramId = (int)($result['telegram_id'] ?? 0);
-                if($telegramId !== 0){
-                    $event = new AccountBoundEvent($player, $telegramId);
-                    $event->call();
-                }
-            }
-            return true;
-        }
-
-        return false;
+        return $updateStmt->rowCount() > 0;
     }
 
     public function unbindByTelegramId(int $telegramId): bool {
