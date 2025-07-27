@@ -110,6 +110,60 @@ if ($player instanceof Player) {
 
 The notification will only be sent if the player has bound their account and has notifications enabled.
 
+### Listening for Account Binding
+
+You can listen for the `AccountBoundEvent` to perform actions when a player successfully binds their account.
+
+```php
+use newlandpe\BindingManager\Event\AccountBoundEvent;
+use pocketmine\event\Listener;
+
+class MyListener implements Listener {
+
+    /**
+     * @param AccountBoundEvent $event
+     * @priority NORMAL
+     * @ignoreCancelled false // The event is cancellable
+     */
+    public function onAccountBound(AccountBoundEvent $event): void {
+        $player = $event->getPlayer();
+        $telegramId = $event->getTelegramId();
+
+        // Example: Give the player a reward for binding their account
+        // $this->giveReward($player);
+        $player->sendMessage("Thanks for binding! You've received a special reward.");
+
+        // You can also cancel the event to prevent the binding from completing
+        // if certain conditions are not met.
+        // $event->cancel();
+    }
+}
+```
+
+### Listening for Account Unbinding
+
+Similarly, you can listen for the `AccountUnboundEvent` to react when a player unbinds their account.
+
+```php
+use newlandpe\BindingManager\Event\AccountUnboundEvent;
+use pocketmine\event\Listener;
+
+class MyListener implements Listener {
+
+    /**
+     * @param AccountUnboundEvent $event
+     * @priority NORMAL
+     */
+    public function onAccountUnbound(AccountUnboundEvent $event): void {
+        $player = $event->getPlayer(); // This is an IPlayer, so the player might be offline
+        $telegramId = $event->getTelegramId();
+
+        // Example: Log the unbinding event
+        $this->getServer()->getLogger()->info("Player " . $player->getName() . " (Telegram ID: " . $telegramId . ") has unbound their account.");
+    }
+}
+```
+
 ## Contributing
 
 Contributions are welcome and appreciated! Here's how you can contribute:

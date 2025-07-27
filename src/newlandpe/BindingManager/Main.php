@@ -12,11 +12,9 @@ use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\plugin\PluginBase;
 use pocketmine\player\Player;
+use pocketmine\scheduler\Task;
 
 class Main extends PluginBase {
-
-    // Dummy change to trigger Poggit CI build
-
 
     private static ?self $instance = null;
     private ?DataProviderInterface $dataProvider = null;
@@ -90,7 +88,7 @@ class Main extends PluginBase {
         $this->bot->getUpdates(function(array $updates) {
             $this->processUpdates($updates);
             // Schedule the next poll only after the current one has completed.
-            $this->getScheduler()->scheduleDelayedTask(new class($this) extends \pocketmine\scheduler\Task {
+            $this->getScheduler()->scheduleDelayedTask(new class($this) extends Task {
                 private Main $main;
                 public function __construct(Main $main) { $this->main = $main; }
                 public function onRun(): void { $this->main->startPolling(); }

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Provider;
 
+use newlandpe\BindingManager\Event\AccountBoundEvent;
+use newlandpe\BindingManager\Event\AccountUnboundEvent;
 use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Util\CodeGenerator;
+use pocketmine\Server;
 use pocketmine\utils\Config;
 
 class YamlProvider implements DataProviderInterface {
@@ -101,15 +104,31 @@ class YamlProvider implements DataProviderInterface {
             unset($data['code'], $data['timestamp']); // Clean up used code and timestamp
             $this->dataFile->set((string)$telegramId, $data);
             $this->dataFile->save();
+
+            $player = Server::getInstance()->getPlayerExact($playerName);
+            if ($player !== null) {
+                $event = new AccountBoundEvent($player, $telegramId);
+                $event->call();
+            }
+
             return true;
         }
         return false;
     }
 
     public function unbindByTelegramId(int $telegramId): bool {
+        $playerName = $this->getBoundPlayerName($telegramId);
+
         if ($this->dataFile->exists((string)$telegramId)) {
             $this->dataFile->remove((string)$telegramId);
             $this->dataFile->save();
+
+            if ($playerName !== null) {
+                $player = Server::getInstance()->getOfflinePlayer($playerName);
+                $event = new AccountUnboundEvent($player, $telegramId);
+                $event->call();
+            }
+
             return true;
         }
         return false;

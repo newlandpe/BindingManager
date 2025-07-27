@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace newlandpe\BindingManager\Provider;
 
 use InvalidArgumentException;
+use newlandpe\BindingManager\Event\AccountBoundEvent;
+use newlandpe\BindingManager\Event\AccountUnboundEvent;
 use newlandpe\BindingManager\Util\CodeGenerator;
 use PDO;
 use PDOException;
+use pocketmine\Server;
 
 class MysqlProvider implements DataProviderInterface {
 
@@ -126,7 +129,7 @@ class MysqlProvider implements DataProviderInterface {
     }
 
     public function confirmBinding(string $playerName, string $code): bool {
-        $stmt = $this->pdo->prepare("SELECT timestamp FROM `{$this->table}` WHERE player_name = :player_name AND code = :code AND confirmed = 0");
+        $stmt = $this->pdo->prepare("SELECT telegram_id, timestamp FROM `{$this->table}` WHERE player_name = :player_name AND code = :code AND confirmed = 0");
         $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
         $stmt->bindParam(":code", $code, PDO::PARAM_STR);
         $stmt->execute();
@@ -139,14 +142,39 @@ class MysqlProvider implements DataProviderInterface {
         $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET confirmed = 1, code = NULL, timestamp = NULL WHERE player_name = :player_name");
         $updateStmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
         $updateStmt->execute();
-        return $updateStmt->rowCount() > 0;
+
+        if ($updateStmt->rowCount() > 0) {
+            $player = Server::getInstance()->getPlayerExact($playerName);
+            if ($player !== null) {
+                $telegramId = (int)($result['telegram_id'] ?? 0);
+                if($telegramId !== 0){
+                    $event = new AccountBoundEvent($player, $telegramId);
+                    $event->call();
+                }
+            }
+            return true;
+        }
+
+        return false;
     }
 
     public function unbindByTelegramId(int $telegramId): bool {
+        $playerName = $this->getBoundPlayerName($telegramId);
+
         $stmt = $this->pdo->prepare("DELETE FROM `{$this->table}` WHERE telegram_id = :telegram_id");
         $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->rowCount() > 0;
+
+        if ($stmt->rowCount() > 0) {
+            if ($playerName !== null) {
+                $player = Server::getInstance()->getOfflinePlayer($playerName);
+                $event = new AccountUnboundEvent($player, $telegramId);
+                $event->call();
+            }
+            return true;
+        }
+
+        return false;
     }
 
     public function isPlayerNameBound(string $playerName): bool {
