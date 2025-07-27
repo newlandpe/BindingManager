@@ -8,6 +8,8 @@ use newlandpe\BindingManager\Command\CommandContext;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\Handler\CallbackQueryHandler;
 use newlandpe\BindingManager\Handler\CommandHandler;
+use newlandpe\BindingManager\LanguageManager;
+use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\TelegramBot;
 
