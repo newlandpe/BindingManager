@@ -137,6 +137,7 @@ telegram-reset-fail: "Failed to initiate account reset. You may not have a bound
 2fa-login-expired: "The login request for {player_name} has expired. Please try logging in again."
 2fa-login-not-completed: "Login for {player_name} was not completed. The player has left the game."
 2fa-login-invalid-code: "Invalid or expired 2FA code. Please try logging in again."
+2fa-login-expired-kick: "§cYour 2FA login request has expired. Please try logging in again."
 
 # In-game Reset
 command-ingame-reset-initiated: "§eA request to unbind your account has been initiated. Your reset code is: §f{code}§e. Provide this code to a server administrator to complete the process. A notification has been sent to your Telegram account."

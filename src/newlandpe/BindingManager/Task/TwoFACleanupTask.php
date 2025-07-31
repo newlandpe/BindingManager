@@ -17,11 +17,9 @@ class TwoFACleanupTask extends Task {
 
     public function onRun(): void {
         $twoFAManager = $this->plugin->getTwoFAManager();
-        $bot = $this->plugin->getBot();
-        $lang = $this->plugin->getLanguageManager();
 
-        if ($twoFAManager !== null && $bot !== null && $lang !== null) {
-            $twoFAManager->cleanupExpiredRequests($bot, $lang);
+        if ($twoFAManager !== null) {
+            $twoFAManager->cleanupExpiredRequests($this->plugin);
         }
     }
 }
