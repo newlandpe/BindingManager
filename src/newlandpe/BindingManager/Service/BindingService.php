@@ -39,4 +39,19 @@ class BindingService {
     public function initiateBinding(string $playerName, int $telegramId): ?string {
         return $this->dataProvider->initiateBinding($playerName, $telegramId);
     }
+
+    public function unbindByTelegramId(int $telegramId): bool {
+        $playerName = $this->dataProvider->getBoundPlayerName($telegramId);
+        if ($this->dataProvider->unbindByTelegramId($telegramId)) {
+            if ($playerName !== null) {
+                $player = Server::getInstance()->getOfflinePlayer($playerName);
+                if ($player !== null) {
+                    $event = new AccountUnboundEvent($player, $telegramId);
+                    $event->call();
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 }

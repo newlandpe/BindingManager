@@ -111,20 +111,9 @@ class YamlProvider implements DataProviderInterface {
     }
 
     public function unbindByTelegramId(int $telegramId): bool {
-        $playerName = $this->getBoundPlayerName($telegramId);
-
         if ($this->dataFile->exists((string)$telegramId)) {
             $this->dataFile->remove((string)$telegramId);
             $this->dataFile->save();
-
-            if ($playerName !== null) {
-                $player = Server::getInstance()->getOfflinePlayer($playerName);
-                if ($player !== null) {
-                    $event = new AccountUnboundEvent($player, $telegramId);
-                    $event->call();
-                }
-            }
-
             return true;
         }
         return false;

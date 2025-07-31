@@ -120,25 +120,12 @@ class SqliteProvider implements DataProviderInterface {
     }
 
     public function unbindByTelegramId(int $telegramId): bool {
-        $playerName = $this->getBoundPlayerName($telegramId);
-
         $stmt = $this->db->prepare("DELETE FROM bindings WHERE telegram_id = :id");
         if ($stmt === false) return false;
         $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
         $stmt->execute();
 
-        if ($this->db->changes() > 0) {
-            if ($playerName !== null) {
-                $player = Server::getInstance()->getOfflinePlayer($playerName);
-                if ($player !== null) {
-                    $event = new AccountUnboundEvent($player, $telegramId);
-                    $event->call();
-                }
-            }
-            return true;
-        }
-
-        return false;
+        return $this->db->changes() > 0;
     }
 
     public function isPlayerNameBound(string $playerName): bool {

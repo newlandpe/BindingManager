@@ -150,24 +150,11 @@ class MysqlProvider implements DataProviderInterface {
     }
 
     public function unbindByTelegramId(int $telegramId): bool {
-        $playerName = $this->getBoundPlayerName($telegramId);
-
         $stmt = $this->pdo->prepare("DELETE FROM `{$this->table}` WHERE telegram_id = :telegram_id");
         $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
         $stmt->execute();
 
-        if ($stmt->rowCount() > 0) {
-            if ($playerName !== null) {
-                $player = Server::getInstance()->getOfflinePlayer($playerName);
-                if ($player !== null) {
-                    $event = new AccountUnboundEvent($player, $telegramId);
-                    $event->call();
-                }
-            }
-            return true;
-        }
-
-        return false;
+        return $stmt->rowCount() > 0;
     }
 
     public function isPlayerNameBound(string $playerName): bool {

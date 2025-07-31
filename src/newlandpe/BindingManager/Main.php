@@ -285,12 +285,12 @@ class Main extends PluginBase implements Listener {
                         return true;
                     }
                     $playerName = $args[1];
-                    $dataProvider = $this->getDataProvider();
+                    $bindingService = $this->getBindingService();
                     $langManager = $this->getLanguageManager();
-                    if (!is_null($dataProvider) && !is_null($langManager)) {
-                        $telegramId = $dataProvider->getTelegramIdByPlayerName($playerName);
+                    if (!is_null($bindingService) && !is_null($langManager)) {
+                        $telegramId = $this->dataProvider->getTelegramIdByPlayerName($playerName);
                         if (!is_null($telegramId)) {
-                            if ($dataProvider->unbindByTelegramId($telegramId)) {
+                            if ($bindingService->unbindByTelegramId($telegramId)) {
                                 $sender->sendMessage($langManager->get("command-forceunbind-success", ["player_name" => $playerName]));
                             } else {
                                 $sender->sendMessage($langManager->get("command-forceunbind-fail", ["player_name" => $playerName]));
