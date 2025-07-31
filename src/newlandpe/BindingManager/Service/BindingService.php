@@ -62,4 +62,12 @@ class BindingService {
     public function initiateUnbinding(int $telegramId): ?string {
         return $this->dataProvider->initiateUnbinding($telegramId);
     }
+
+    public function initiateReset(int $telegramId): ?string {
+        return $this->dataProvider->initiateReset($telegramId);
+    }
+
+    public function initiateInGameReset(string $playerName): ?string {
+        return $this->dataProvider->initiateInGameReset($playerName);
+    }
 }

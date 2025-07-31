@@ -217,15 +217,15 @@ class Main extends PluginBase implements Listener {
                     }
                     return true;
                 case "reset":
-                    $dataProvider = $this->getDataProvider();
+                    $bindingService = $this->getBindingService();
                     $langManager = $this->getLanguageManager();
                     $bot = $this->getBot();
 
-                    if (is_null($dataProvider) || is_null($langManager) || is_null($bot)) {
+                    if (is_null($bindingService) || is_null($langManager) || is_null($bot)) {
                         return true;
                     }
 
-                    $code = $dataProvider->initiateInGameReset($sender->getName());
+                    $code = $bindingService->initiateInGameReset($sender->getName());
 
                     if ($code === null) {
                         $sender->sendMessage($langManager->get("command-ingame-reset-fail"));

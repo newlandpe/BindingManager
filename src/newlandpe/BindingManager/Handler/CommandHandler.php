@@ -41,7 +41,7 @@ class CommandHandler {
             'myinfo' => new MyInfoCommand($bot),
             'unbind' => new UnbindCommand($bot, $bindingService),
             'admininfo' => new AdminPlayerInfoCommand($bot),
-            'reset' => new ResetBindingCommand($bot),
+            'reset' => new ResetBindingCommand($bot, $bindingService),
             '2fa' => new TwoFactorCommand($bot),
         ];
     }
