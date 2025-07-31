@@ -27,7 +27,7 @@ class TelegramBot {
         $this->config = $config;
         $this->keyboardFactory = new KeyboardFactory($lang);
         $this->commandHandler = new CommandHandler($this, $this->keyboardFactory, $bindingService);
-        $this->callbackQueryHandler = new CallbackQueryHandler($this, $this->keyboardFactory);
+        $this->callbackQueryHandler = new CallbackQueryHandler($this, $this->keyboardFactory, $bindingService);
     }
 
     public function initialize(): bool {

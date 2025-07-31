@@ -169,7 +169,7 @@ class CallbackQueryHandler {
                 }
                 break;
             case 'notifications':
-                $isEnabled = $dataProvider->toggleNotifications($fromId);
+                $isEnabled = $this->bindingService->toggleNotifications($fromId);
                 $status = $isEnabled ? 'enabled' : 'disabled';
                 $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}"));
                 break;

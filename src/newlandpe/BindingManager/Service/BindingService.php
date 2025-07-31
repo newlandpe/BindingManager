@@ -74,4 +74,8 @@ class BindingService {
     public function confirmInGameReset(string $playerName, string $code): bool {
         return $this->dataProvider->confirmInGameReset($playerName, $code);
     }
+
+    public function toggleNotifications(int $telegramId): bool {
+        return $this->dataProvider->toggleNotifications($telegramId);
+    }
 }
