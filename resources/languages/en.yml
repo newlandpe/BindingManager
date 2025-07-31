@@ -100,7 +100,7 @@ command-forceunbind-player-not-bound: "§cPlayer {player_name} is not bound to a
 
 # Admin Telegram commands
 telegram-admin-permission-denied: "You do not have permission to use this command."
-telegram-admin-playerinfo-usage: "Usage: /admininfo <telegram_id>"
+telegram-admin-playerinfo-usage: "Usage: /admininfo &lt;telegram_id&gt;"
 telegram-admin-playerinfo-success: "Telegram ID {telegram_id} is bound to player: {player_name}"
 telegram-admin-playerinfo-not-found: "Telegram ID {telegram_id} is not bound to any player."
 

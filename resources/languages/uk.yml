@@ -99,7 +99,7 @@ command-forceunbind-player-not-bound: "§cГравець {player_name} не пр
 
 # Admin Telegram commands
 telegram-admin-permission-denied: "У вас немає дозволу на використання цієї команди."
-telegram-admin-playerinfo-usage: "Використання: /admininfo <telegram_id>"
+telegram-admin-playerinfo-usage: "Використання: /admininfo &lt;telegram_id&gt;"
 telegram-admin-playerinfo-success: "Telegram ID {telegram_id} прив'язаний до гравця: {player_name}"
 telegram-admin-playerinfo-not-found: "Telegram ID {telegram_id} не прив'язаний до жодного гравця."
 
