@@ -22,11 +22,11 @@ class TelegramBot {
     private KeyboardFactory $keyboardFactory;
     private Config $config;
 
-    public function __construct(string $token, Config $config, LanguageManager $lang) {
+    public function __construct(string $token, Config $config, LanguageManager $lang, BindingService $bindingService) {
         $this->token = $token;
         $this->config = $config;
         $this->keyboardFactory = new KeyboardFactory($lang);
-        $this->commandHandler = new CommandHandler($this, $this->keyboardFactory);
+        $this->commandHandler = new CommandHandler($this, $this->keyboardFactory, $bindingService);
         $this->callbackQueryHandler = new CallbackQueryHandler($this, $this->keyboardFactory);
     }
 

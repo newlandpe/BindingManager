@@ -35,4 +35,8 @@ class BindingService {
         }
         return false;
     }
+
+    public function initiateBinding(string $playerName, int $telegramId): ?string {
+        return $this->dataProvider->initiateBinding($playerName, $telegramId);
+    }
 }

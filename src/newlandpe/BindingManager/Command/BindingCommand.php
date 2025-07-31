@@ -59,7 +59,7 @@ class BindingCommand implements CommandInterface {
         }
 
         $playerName = $args[0];
-        $code = $dataProvider->initiateBinding($playerName, $fromId);
+        $code = $this->bindingService->initiateBinding($playerName, $fromId);
 
         if ($code === null) {
             if ($dataProvider->getBindingStatus($fromId) !== 0) {

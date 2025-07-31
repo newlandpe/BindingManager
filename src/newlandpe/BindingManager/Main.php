@@ -84,7 +84,7 @@ class Main extends PluginBase implements Listener {
         }
 
         $this->bindingService = new BindingService($this->dataProvider);
-        $this->bot = new TelegramBot($token, $this->getConfig(), $this->languageManager);
+        $this->bot = new TelegramBot($token, $this->getConfig(), $this->languageManager, $this->bindingService);
         if (!$this->bot->initialize()) {
             $this->getLogger()->error("Failed to get bot info, disabling plugin.");
             $this->getServer()->getPluginManager()->disablePlugin($this);

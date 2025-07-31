@@ -30,14 +30,14 @@ class CommandHandler {
      * @param TelegramBot $bot
      * @param KeyboardFactory $keyboardFactory
      */
-    public function __construct(TelegramBot $bot, KeyboardFactory $keyboardFactory) {
+    public function __construct(TelegramBot $bot, KeyboardFactory $keyboardFactory, BindingService $bindingService) {
         $this->bot = $bot;
         $this->keyboardFactory = $keyboardFactory;
 
         $this->commands = [
             'start' => new StartCommand($bot),
             'help' => new HelpCommand($bot),
-            'binding' => new BindingCommand($bot),
+            'binding' => new BindingCommand($bot, $bindingService),
             'myinfo' => new MyInfoCommand($bot),
             'unbind' => new UnbindCommand($bot),
             'admininfo' => new AdminPlayerInfoCommand($bot),
