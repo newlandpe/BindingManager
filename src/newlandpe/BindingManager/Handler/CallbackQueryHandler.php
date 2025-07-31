@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Handler;
 
+use Luthfi\XAuth\Main as XAuthMain;
 use newlandpe\BindingManager\Command\CommandContext;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\Handler\CommandHandler;
@@ -11,9 +12,8 @@ use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\TelegramBot;
-use pocketmine\Server;
 use newlandpe\BindingManager\TwoFAManager;
-use Luthfi\XAuth\event\PlayerLoginEvent;
+use pocketmine\Server;
 
 class CallbackQueryHandler {
 
