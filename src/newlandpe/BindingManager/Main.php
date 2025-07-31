@@ -258,11 +258,11 @@ class Main extends PluginBase implements Listener {
                     }
                     $playerName = $args[1];
                     $code = $args[2];
-                    $dataProvider = $this->getDataProvider();
+                    $bindingService = $this->getBindingService();
                     $langManager = $this->getLanguageManager();
 
-                    if (!is_null($dataProvider) && !is_null($langManager)) {
-                        if ($dataProvider->confirmInGameReset($playerName, $code)) {
+                    if (!is_null($bindingService) && !is_null($langManager)) {
+                        if ($bindingService->confirmInGameReset($playerName, $code)) {
                             $sender->sendMessage($langManager->get("command-confirmreset-success", ["player_name" => $playerName]));
                         } else {
                             $sender->sendMessage($langManager->get("command-confirmreset-fail", ["player_name" => $playerName]));

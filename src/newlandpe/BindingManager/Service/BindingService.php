@@ -70,4 +70,8 @@ class BindingService {
     public function initiateInGameReset(string $playerName): ?string {
         return $this->dataProvider->initiateInGameReset($playerName);
     }
+
+    public function confirmInGameReset(string $playerName, string $code): bool {
+        return $this->dataProvider->confirmInGameReset($playerName, $code);
+    }
 }
