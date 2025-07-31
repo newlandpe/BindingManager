@@ -38,4 +38,12 @@ interface DataProviderInterface {
     public function confirmUnbinding(string $playerName, string $code): bool;
 
     public function initiateReset(int $telegramId): ?string;
+
+    public function initiateInGameReset(string $playerName): ?string;
+
+    public function confirmInGameReset(string $playerName, string $code): bool;
+
+    public function isTwoFactorEnabled(int $telegramId): bool;
+
+    public function setTwoFactor(int $telegramId, bool $enabled): void;
 }

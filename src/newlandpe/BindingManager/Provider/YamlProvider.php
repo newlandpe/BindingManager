@@ -225,4 +225,63 @@ class YamlProvider implements DataProviderInterface {
         $this->dataFile->save();
         return $code;
     }
+
+    public function initiateInGameReset(string $playerName): ?string {
+        $telegramId = $this->getTelegramIdByPlayerName($playerName);
+        if ($telegramId === null) {
+            return null; // Not bound
+        }
+
+        $data = $this->dataFile->get((string)$telegramId);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $code = $this->codeGenerator->generate();
+        $data['ingame_reset_code'] = $code;
+        $data['ingame_reset_timestamp'] = time();
+        $this->dataFile->set((string)$telegramId, $data);
+        $this->dataFile->save();
+        return $code;
+    }
+
+    public function confirmInGameReset(string $playerName, string $code): bool {
+        $telegramId = $this->getTelegramIdByPlayerName($playerName);
+        if ($telegramId === null) {
+            return false;
+        }
+
+        $data = $this->dataFile->get((string)$telegramId);
+        if (!is_array($data)) {
+            return false;
+        }
+
+        if (isset($data['ingame_reset_code']) && $data['ingame_reset_code'] === $code) {
+            if (isset($data['ingame_reset_timestamp']) && (time() - (int)$data['ingame_reset_timestamp'] > $this->bindingCodeTimeoutSeconds)) {
+                // Code expired, clear reset request
+                unset($data['ingame_reset_code'], $data['ingame_reset_timestamp']);
+                $this->dataFile->set((string)$telegramId, $data);
+                $this->dataFile->save();
+                return false;
+            }
+
+            // Code is valid, perform unbinding
+            return $this->unbindByTelegramId((int)($data['telegram_id'] ?? 0));
+        }
+        return false;
+    }
+
+    public function isTwoFactorEnabled(int $telegramId): bool {
+        $data = $this->dataFile->get((string)$telegramId);
+        return is_array($data) && ($data['two_factor_enabled'] ?? false);
+    }
+
+    public function setTwoFactor(int $telegramId, bool $enabled): void {
+        if ($this->dataFile->exists((string)$telegramId)) {
+            $data = $this->dataFile->get((string)$telegramId);
+            $data['two_factor_enabled'] = $enabled;
+            $this->dataFile->set((string)$telegramId, $data);
+            $this->dataFile->save();
+        }
+    }
 }

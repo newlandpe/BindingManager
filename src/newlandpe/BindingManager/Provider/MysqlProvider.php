@@ -71,7 +71,10 @@ class MysqlProvider implements DataProviderInterface {
             `timestamp` INT NULL,
             `notifications_enabled` BOOLEAN NOT NULL DEFAULT TRUE,
             `unbind_code` VARCHAR(12) NULL,
-            `unbind_timestamp` INT NULL
+            `unbind_timestamp` INT NULL,
+            `ingame_reset_code` VARCHAR(12) NULL,
+            `ingame_reset_timestamp` INT NULL,
+            `two_factor_enabled` BOOLEAN NOT NULL DEFAULT FALSE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
         $this->pdo->exec($sql);
     }
@@ -262,5 +265,54 @@ class MysqlProvider implements DataProviderInterface {
         $updateStmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
         $updateStmt->execute();
         return $code;
+    }
+
+    public function initiateInGameReset(string $playerName): ?string {
+        $telegramId = $this->getTelegramIdByPlayerName($playerName);
+        if ($telegramId === null) {
+            return null; // Not bound
+        }
+
+        $code = $this->codeGenerator->generate();
+        $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET ingame_reset_code = :code, ingame_reset_timestamp = :time WHERE telegram_id = :telegram_id");
+        $updateStmt->bindParam(":code", $code, PDO::PARAM_STR);
+        $updateStmt->bindValue(":time", time(), PDO::PARAM_INT);
+        $updateStmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
+        $updateStmt->execute();
+        return $code;
+    }
+
+    public function confirmInGameReset(string $playerName, string $code): bool {
+        $stmt = $this->pdo->prepare("SELECT telegram_id, ingame_reset_timestamp FROM `{$this->table}` WHERE player_name = :player_name AND ingame_reset_code = :code AND confirmed = 1");
+        $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
+        $stmt->bindParam(":code", $code, PDO::PARAM_STR);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!is_array($result) || (time() - (int)($result['ingame_reset_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
+            // Code expired or not found, clear reset request
+            $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET ingame_reset_code = NULL, ingame_reset_timestamp = NULL WHERE player_name = :player_name");
+            $updateStmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
+            $updateStmt->execute();
+            return false;
+        }
+
+        // Code is valid, perform unbinding
+        return $this->unbindByTelegramId((int)($result['telegram_id'] ?? 0));
+    }
+
+    public function isTwoFactorEnabled(int $telegramId): bool {
+        $stmt = $this->pdo->prepare("SELECT two_factor_enabled FROM `{$this->table}` WHERE telegram_id = :telegram_id");
+        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return is_array($result) && (bool)($result['two_factor_enabled'] ?? false);
+    }
+
+    public function setTwoFactor(int $telegramId, bool $enabled): void {
+        $stmt = $this->pdo->prepare("UPDATE `{$this->table}` SET two_factor_enabled = :enabled WHERE telegram_id = :telegram_id");
+        $stmt->bindParam(":enabled", $enabled, PDO::PARAM_BOOL);
+        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
+        $stmt->execute();
     }
 }

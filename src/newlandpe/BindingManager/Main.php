@@ -156,18 +156,27 @@ class Main extends PluginBase {
             }
 
             if (!isset($args[0])) {
-                $sender->sendMessage("Usage: /tg <subcommand>");
+                $sender->sendMessage($this->languageManager->get("command-usage-tg"));
                 return true;
             }
 
             switch (strtolower($args[0])) {
+                case "help":
+                    $lang = $this->getLanguageManager();
+                    if($lang === null) return true;
+                    if($sender->hasPermission("bindingmanager.command.forceunbind")) {
+                        $sender->sendMessage($lang->get("command-tg-help-admin"));
+                    } else {
+                        $sender->sendMessage($lang->get("command-tg-help-player"));
+                    }
+                    return true;
                 case "unbind":
                     if (!isset($args[1]) || strtolower($args[1]) !== "confirm") {
-                        $sender->sendMessage("Usage: /tg unbind confirm <code>");
+                        $sender->sendMessage($this->languageManager->get("command-usage-tg-unbind"));
                         return true;
                     }
                     if (!isset($args[2]) || $args[2] === '') {
-                        $sender->sendMessage("Usage: /tg unbind confirm <code>");
+                        $sender->sendMessage($this->languageManager->get("command-usage-tg-unbind"));
                         return true;
                     }
                     $code = $args[2];
@@ -178,6 +187,56 @@ class Main extends PluginBase {
                             $sender->sendMessage($langManager->get("command-unbind-confirm-success"));
                         } else {
                             $sender->sendMessage($langManager->get("command-unbind-confirm-fail"));
+                        }
+                    }
+                    return true;
+                case "reset":
+                    $dataProvider = $this->getDataProvider();
+                    $langManager = $this->getLanguageManager();
+                    $bot = $this->getBot();
+
+                    if (is_null($dataProvider) || is_null($langManager) || is_null($bot)) {
+                        return true;
+                    }
+
+                    $code = $dataProvider->initiateInGameReset($sender->getName());
+
+                    if ($code === null) {
+                        $sender->sendMessage($langManager->get("command-ingame-reset-fail"));
+                        return true;
+                    }
+
+                    $telegramId = $dataProvider->getTelegramIdByPlayerName($sender->getName());
+                    if ($telegramId !== null) {
+                        $bot->sendMessage($telegramId, $langManager->get("telegram-ingame-reset-alert"));
+                    }
+
+                    $sender->sendMessage($langManager->get("command-ingame-reset-initiated", ["code" => $code]));
+                    $this->getLogger()->info("Player " . $sender->getName() . " has initiated an in-game account reset. Their code is " . $code);
+
+                    return true;
+                case "confirmreset":
+                    if (!$sender->hasPermission("bindingmanager.command.forceunbind")) {
+                        $langManager = $this->getLanguageManager();
+                        if (!is_null($langManager)) {
+                            $sender->sendMessage($langManager->get("command-no-permission"));
+                        }
+                        return true;
+                    }
+                    if (!isset($args[1]) || !isset($args[2])) {
+                        $sender->sendMessage("Usage: /tg confirmreset <playername> <code>");
+                        return true;
+                    }
+                    $playerName = $args[1];
+                    $code = $args[2];
+                    $dataProvider = $this->getDataProvider();
+                    $langManager = $this->getLanguageManager();
+
+                    if (!is_null($dataProvider) && !is_null($langManager)) {
+                        if ($dataProvider->confirmInGameReset($playerName, $code)) {
+                            $sender->sendMessage($langManager->get("command-confirmreset-success", ["player_name" => $playerName]));
+                        } else {
+                            $sender->sendMessage($langManager->get("command-confirmreset-fail", ["player_name" => $playerName]));
                         }
                     }
                     return true;
@@ -210,7 +269,7 @@ class Main extends PluginBase {
                     }
                     return true;
                 default:
-                    $sender->sendMessage("Unknown subcommand.");
+                    $sender->sendMessage($this->languageManager->get("command-unknown-subcommand"));
                     return true;
             }
         }
@@ -231,6 +290,10 @@ class Main extends PluginBase {
 
     public function getBot(): ?TelegramBot {
         return $this->bot;
+    }
+
+    public function getFreezeManager(): FreezeManager {
+        return $this->freezeManager;
     }
 
     public function getUserState(int $userId): ?string {

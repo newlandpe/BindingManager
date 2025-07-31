@@ -12,6 +12,7 @@ use newlandpe\BindingManager\Command\HelpCommand;
 use newlandpe\BindingManager\Command\MyInfoCommand;
 use newlandpe\BindingManager\Command\ResetBindingCommand;
 use newlandpe\BindingManager\Command\StartCommand;
+use newlandpe\BindingManager\Command\TwoFactorCommand;
 use newlandpe\BindingManager\Command\UnbindCommand;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\LanguageManager;
@@ -41,6 +42,7 @@ class CommandHandler {
             'unbind' => new UnbindCommand($bot),
             'admininfo' => new AdminPlayerInfoCommand($bot),
             'reset' => new ResetBindingCommand($bot),
+            '2fa' => new TwoFactorCommand($bot),
         ];
     }
 

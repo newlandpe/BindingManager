@@ -7,16 +7,37 @@ command-only-in-game: "This command can only be used in-game."
 command-unbind-confirm-success: "§aYour account has been successfully unbound!"
 command-unbind-confirm-fail: "§cFailed to unbind your account. You may not have initiated the unbinding process, or the code is incorrect."
 
+# Command Usage
+command-usage-confirm: "§cUsage: /confirm <code>"
+command-usage-tg: "§cUsage: /tg <subcommand>"
+command-usage-tg-unbind: "§cUsage: /tg unbind confirm <code>"
+command-usage-tg-forceunbind: "§cUsage: /tg forceunbind <playername>"
+command-usage-tg-confirmreset: "§cUsage: /tg confirmreset <playername> <code>"
+command-unknown-subcommand: "§cUnknown subcommand. Use /tg help for a list of commands."
+
+# /tg help command
+command-tg-help-player: |
+  §e--- BindingManager Help ---
+  §f/tg unbind confirm <code>: §7Confirms unbinding your account.
+  §f/tg reset: §7Initiates an account reset if you lost Telegram access.
+command-tg-help-admin: |
+  §e--- BindingManager Help (Admin) ---
+  §f/tg unbind confirm <code>: §7Confirms unbinding your account.
+  §f/tg reset: §7Initiates an account reset if you lost Telegram access.
+  §c/tg forceunbind <player>: §7(Admin) Forcibly unbinds a player.
+  §c/tg confirmreset <player> <code>: §7(Admin) Confirms an in-game reset request.
+
 # In-game prompts
 ingame-prompt-bind: "§eYour account is not bound to Telegram. Use /tg bind to start the process with @{bot_username}."
 
 # Telegram Bot Messages
-telegram-start: "🧳 Hello, friend! This is BindingManager, ready to secure your account."
+telegram-start: "👋🏻 Hello, friend! This is BindingManager, ready to secure your account."
 telegram-help: |
   💡 Command List:
   /binding [nickname] - Bind your game account to this Telegram chat.
   /myinfo - Get information about your bound account.
   /unbind - Unbind your account from Telegram.
+  /2fa - Manage two-factor authentication.
 telegram-binding-usage: "Please provide your Minecraft nickname: /binding <nickname>"
 telegram-binding-code: "Your confirmation code is: {code}. Enter this command in-game to confirm: /confirm {code}"
 telegram-binding-already-bound: "This Telegram account is already bound or pending confirmation."
@@ -86,3 +107,32 @@ telegram-admin-playerinfo-not-found: "Telegram ID {telegram_id} is not bound to 
 # Reset Binding
 telegram-reset-code: "Your reset code is: {code}. Please contact a server administrator with this code to complete the reset process."
 telegram-reset-fail: "Failed to initiate account reset. You may not have a bound account or an error occurred."
+
+# 2FA
+2fa-enabled: "Two-factor authentication has been enabled."
+2fa-disabled: "Two-factor authentication has been disabled."
+2fa-status-enabled: "Two-factor authentication is currently enabled."
+2fa-status-disabled: "Two-factor authentication is currently disabled."
+2fa-not-bound: "You must bind your account before enabling two-factor authentication."
+2fa-usage: "Usage: /2fa <enable|disable|status>"
+
+# 2FA Prompts
+2fa-prompt: "§ePlease check your Telegram for a message to confirm your login."
+2fa-command-not-allowed: "§cYou must confirm your login via Telegram to use commands."
+2fa-chat-not-allowed: "§cYou must confirm your login via Telegram to chat."
+
+# 2FA Login
+2fa-login-confirmed: "§aLogin confirmed. You can now play."
+2fa-login-denied: "§cLogin denied from Telegram."
+2fa-selection-made: "A selection has been made."
+
+# 2FA Keyboard
+2fa-keyboard-confirm: "✅ Confirm"
+2fa-keyboard-deny: "❌ Deny"
+
+# In-game Reset
+command-ingame-reset-initiated: "§eA request to unbind your account has been initiated. Your reset code is: §f{code}§e. Provide this code to a server administrator to complete the process. A notification has been sent to your Telegram account."
+command-ingame-reset-fail: "§cFailed to initiate the reset process. Your account may not be bound."
+command-confirmreset-success: "§aSuccessfully unbound {player_name}."
+command-confirmreset-fail: "§cFailed to unbind {player_name}. The code may be incorrect, expired, or the player is not bound."
+telegram-ingame-reset-alert: "⚠️ Attention! A request to unbind your account has been initiated from your in-game account. If this was not you, contact the administration immediately!"

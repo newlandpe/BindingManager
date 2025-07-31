@@ -38,7 +38,10 @@ class SqliteProvider implements DataProviderInterface {
             timestamp INTEGER,
             notifications_enabled INTEGER NOT NULL DEFAULT 1,
             unbind_code TEXT,
-            unbind_timestamp INTEGER
+            unbind_timestamp INTEGER,
+            ingame_reset_code TEXT,
+            ingame_reset_timestamp INTEGER,
+            two_factor_enabled INTEGER NOT NULL DEFAULT 0
         )");
     }
 
@@ -247,5 +250,61 @@ class SqliteProvider implements DataProviderInterface {
         $updateStmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
         $updateStmt->execute();
         return $code;
+    }
+
+    public function initiateInGameReset(string $playerName): ?string {
+        $telegramId = $this->getTelegramIdByPlayerName($playerName);
+        if ($telegramId === null) {
+            return null; // Not bound
+        }
+
+        $code = $this->codeGenerator->generate();
+        $updateStmt = $this->db->prepare("UPDATE bindings SET ingame_reset_code = :code, ingame_reset_timestamp = :time WHERE telegram_id = :id");
+        if ($updateStmt === false) return null;
+        $updateStmt->bindValue(':code', $code, SQLITE3_TEXT);
+        $updateStmt->bindValue(':time', time(), SQLITE3_INTEGER);
+        $updateStmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
+        $updateStmt->execute();
+        return $code;
+    }
+
+    public function confirmInGameReset(string $playerName, string $code): bool {
+        $stmt = $this->db->prepare("SELECT telegram_id, ingame_reset_timestamp FROM bindings WHERE player_name = :name AND ingame_reset_code = :code AND confirmed = 1");
+        if ($stmt === false) return false;
+        $stmt->bindValue(':name', $playerName, SQLITE3_TEXT);
+        $stmt->bindValue(':code', $code, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        if ($result === false) return false;
+        $data = $result->fetchArray(SQLITE3_ASSOC);
+
+        if (!is_array($data) || (isset($data['ingame_reset_timestamp']) && (time() - (int)$data['ingame_reset_timestamp'] > $this->bindingCodeTimeoutSeconds))) {
+            // Code expired or not found, clear reset request
+            $updateStmt = $this->db->prepare("UPDATE bindings SET ingame_reset_code = NULL, ingame_reset_timestamp = NULL WHERE player_name = :name");
+            if ($updateStmt === false) return false;
+            $updateStmt->bindValue(':name', $playerName, SQLITE3_TEXT);
+            $updateStmt->execute();
+            return false;
+        }
+
+        // Code is valid, perform unbinding
+        return $this->unbindByTelegramId((int)($data['telegram_id'] ?? 0));
+    }
+
+    public function isTwoFactorEnabled(int $telegramId): bool {
+        $stmt = $this->db->prepare("SELECT two_factor_enabled FROM bindings WHERE telegram_id = :id");
+        if ($stmt === false) return false;
+        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        if ($result === false) return false;
+        $fetch = $result->fetchArray(SQLITE3_ASSOC);
+        return is_array($fetch) && (($fetch['two_factor_enabled'] ?? 0) == 1);
+    }
+
+    public function setTwoFactor(int $telegramId, bool $enabled): void {
+        $stmt = $this->db->prepare("UPDATE bindings SET two_factor_enabled = :enabled WHERE telegram_id = :id");
+        if ($stmt === false) return;
+        $stmt->bindValue(':enabled', $enabled ? 1 : 0, SQLITE3_INTEGER);
+        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
+        $stmt->execute();
     }
 }

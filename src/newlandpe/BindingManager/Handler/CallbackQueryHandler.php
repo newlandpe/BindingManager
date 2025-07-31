@@ -217,4 +217,36 @@ class CallbackQueryHandler {
                 break;
         }
     }
+
+    private function handle2FAMenu(CallbackQueryContext $context, string $action, string $playerName): void {
+        $player = Server::getInstance()->getPlayerExact($playerName);
+        if ($player === null) {
+            return;
+        }
+
+        $main = Main::getInstance();
+        if ($main === null) {
+            return;
+        }
+
+        if ($action === 'confirm') {
+            $main->getFreezeManager()->unfreezePlayer($player);
+            $player->sendMessage($main->getLanguageManager()->get("2fa-login-confirmed"));
+        } elseif ($action === 'deny') {
+            $player->kick($main->getLanguageManager()->get("2fa-login-denied"));
+        }
+
+        $chatId = 0;
+        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
+            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        }
+        $messageId = 0;
+        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
+            $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+        }
+
+        if ($chatId !== 0 && $messageId !== 0) {
+            $this->bot->editMessageText($chatId, $messageId, $main->getLanguageManager()->get("2fa-selection-made"));
+        }
+    }
 }
