@@ -129,6 +129,9 @@ telegram-reset-fail: "Не вдалося ініціювати скидання 
 2fa-keyboard-confirm: "✅ Підтвердити"
 2fa-keyboard-deny: "❌ Відхилити"
 
+# 2FA Login Attempt
+2fa-login-attempt: "Спроба входу виявлена з {ip}. Це були ви?"
+
 # In-game Reset
 command-ingame-reset-initiated: "§eЗапит на відв'язку акаунта ініційовано. Ваш код для скидання: §f{code}§e. Надайте цей код адміністратору сервера, щоб завершити процес. На ваш Telegram-акаунт надіслано сповіщення."
 command-ingame-reset-fail: "§cНе вдалося ініціювати процес скидання. Можливо, ваш акаунт не прив'язаний."
