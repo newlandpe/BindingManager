@@ -12,11 +12,13 @@ use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\Task\RequestTickTask;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\plugin\PluginBase;
 use pocketmine\player\Player;
 use pocketmine\scheduler\Task;
 
-class Main extends PluginBase {
+class Main extends PluginBase implements Listener {
 
     private static ?self $instance = null;
     private ?DataProviderInterface $dataProvider = null;
@@ -299,6 +301,30 @@ class Main extends PluginBase {
             }
         }
         return false;
+    }
+
+    public function onPlayerQuit(PlayerQuitEvent $event): void {
+        $player = $event->getPlayer();
+        $playerName = strtolower($player->getName());
+
+        $twoFAManager = $this->getTwoFAManager();
+        if ($twoFAManager === null) {
+            return;
+        }
+
+        $request = $twoFAManager->getRequest($playerName);
+        if ($request !== null) {
+            $bot = $this->getBot();
+            $lang = $this->getLanguageManager();
+            if ($bot !== null && $lang !== null) {
+                $bot->editMessageText(
+                    $request['chat_id'],
+                    $request['message_id'],
+                    $lang->get("2fa-login-not-completed", ["player_name" => $player->getName()])
+                );
+            }
+            $twoFAManager->removeRequest($playerName);
+        }
     }
 
     public static function getInstance(): ?self {
