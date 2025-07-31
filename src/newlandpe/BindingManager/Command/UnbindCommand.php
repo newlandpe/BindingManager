@@ -8,7 +8,7 @@ use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
-use newlandpe\BindingManager\TelegramBot;
+use newlandpe\BindingManager\Telegram\TelegramBot;
 
 class UnbindCommand implements CommandInterface {
 

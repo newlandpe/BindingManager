@@ -9,14 +9,10 @@ use newlandpe\BindingManager\Main;
 
 class KeyboardFactory {
 
-    private ?LanguageManager $lang = null;
+    private LanguageManager $lang;
 
-    public function __construct() {
-        $main = Main::getInstance();
-        if ($main === null) {
-            throw new \RuntimeException('Main instance not available.');
-        }
-        $this->lang = $main->getLanguageManager();
+    public function __construct(LanguageManager $lang) {
+        $this->lang = $lang;
     }
 
     /**

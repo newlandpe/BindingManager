@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace newlandpe\BindingManager\Command;
 
 use newlandpe\BindingManager\Main;
-use newlandpe\BindingManager\TelegramBot;
+use newlandpe\BindingManager\Telegram\TelegramBot;
 
 class TwoFactorCommand implements CommandInterface {
 

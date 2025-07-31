@@ -11,8 +11,8 @@ use newlandpe\BindingManager\Handler\CommandHandler;
 use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
-use newlandpe\BindingManager\TelegramBot;
-use newlandpe\BindingManager\TwoFAManager;
+use newlandpe\BindingManager\Telegram\TelegramBot;
+use newlandpe\BindingManager\Service\TwoFAManager;
 use pocketmine\Server;
 
 class CallbackQueryHandler {

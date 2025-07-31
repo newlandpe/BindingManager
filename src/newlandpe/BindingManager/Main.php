@@ -9,8 +9,11 @@ use newlandpe\BindingManager\Listener\NotificationListener;
 use newlandpe\BindingManager\Listener\XAuthListener;
 use newlandpe\BindingManager\Provider\DataProviderFactory;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
+use newlandpe\BindingManager\Service\FreezeManager;
+use newlandpe\BindingManager\Service\TwoFAManager;
 use newlandpe\BindingManager\Task\RequestTickTask;
 use newlandpe\BindingManager\Task\TwoFACleanupTask;
+use newlandpe\BindingManager\Telegram\TelegramBot;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\event\Listener;
@@ -80,7 +83,7 @@ class Main extends PluginBase implements Listener {
             return;
         }
 
-        $this->bot = new TelegramBot($token, $this->getConfig());
+        $this->bot = new TelegramBot($token, $this->getConfig(), $this->languageManager);
         if (!$this->bot->initialize()) {
             $this->getLogger()->error("Failed to get bot info, disabling plugin.");
             $this->getServer()->getPluginManager()->disablePlugin($this);

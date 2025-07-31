@@ -7,7 +7,7 @@ namespace newlandpe\BindingManager\Listener;
 use newlandpe\BindingManager\Event\SendNotificationEvent;
 use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
-use newlandpe\BindingManager\TelegramBot;
+use newlandpe\BindingManager\Telegram\TelegramBot;
 use pocketmine\event\Listener;
 
 class NotificationListener implements Listener {

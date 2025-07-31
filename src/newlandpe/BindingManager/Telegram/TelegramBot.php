@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace newlandpe\BindingManager;
+namespace newlandpe\BindingManager\Telegram;
 
 use newlandpe\BindingManager\Command\CommandContext;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
@@ -22,10 +22,10 @@ class TelegramBot {
     private KeyboardFactory $keyboardFactory;
     private Config $config;
 
-    public function __construct(string $token, Config $config) {
+    public function __construct(string $token, Config $config, LanguageManager $lang) {
         $this->token = $token;
         $this->config = $config;
-        $this->keyboardFactory = new KeyboardFactory();
+        $this->keyboardFactory = new KeyboardFactory($lang);
         $this->commandHandler = new CommandHandler($this, $this->keyboardFactory);
         $this->callbackQueryHandler = new CallbackQueryHandler($this, $this->keyboardFactory);
     }

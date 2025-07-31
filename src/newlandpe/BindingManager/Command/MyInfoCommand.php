@@ -8,7 +8,7 @@ use newlandpe\BindingManager\Event\PlayerDataInfoEvent;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
-use newlandpe\BindingManager\TelegramBot;
+use newlandpe\BindingManager\Telegram\TelegramBot;
 use pocketmine\player\Player;
 use pocketmine\Server;
 

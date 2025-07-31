@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace newlandpe\BindingManager;
+namespace newlandpe\BindingManager\Service;
 
 use pocketmine\player\Player;
 

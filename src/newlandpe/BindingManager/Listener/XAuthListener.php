@@ -6,7 +6,7 @@ namespace newlandpe\BindingManager\Listener;
 
 use Luthfi\XAuth\event\PlayerLoginEvent;
 use newlandpe\BindingManager\Main;
-use newlandpe\BindingManager\TwoFAManager;
+use newlandpe\BindingManager\Service\TwoFAManager;
 use pocketmine\event\Listener;
 use pocketmine\player\Player;
 
