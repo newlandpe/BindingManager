@@ -9,8 +9,8 @@ use newlandpe\BindingManager\Listener\NotificationListener;
 use newlandpe\BindingManager\Listener\XAuthListener;
 use newlandpe\BindingManager\Provider\DataProviderFactory;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
-use newlandpe\BindingManager\Service\FreezeManager;
-use newlandpe\BindingManager\Service\TwoFAManager;
+use newlandpe\BindingManager\Service\BindingService;
+use newlandpe\BindingManager\Service\TwoFactorAuthService;
 use newlandpe\BindingManager\Task\RequestTickTask;
 use newlandpe\BindingManager\Task\TwoFACleanupTask;
 use newlandpe\BindingManager\Telegram\TelegramBot;
@@ -31,15 +31,14 @@ class Main extends PluginBase implements Listener {
     private int $offset = 0;
     /** @var array<int, string> */
     private array $userStates = [];
-    private ?FreezeManager $freezeManager = null;
-    private ?TwoFAManager $twoFAManager = null;
+    private ?TwoFactorAuthService $twoFactorAuthService = null;
+    private ?BindingService $bindingService = null;
 
     public function onEnable(): void {
         self::$instance = $this;
         $this->saveDefaultConfig();
 
-        $this->freezeManager = new FreezeManager();
-        $this->twoFAManager = new TwoFAManager();
+        $this->twoFactorAuthService = new TwoFactorAuthService();
 
         $this->getScheduler()->scheduleRepeatingTask(new RequestTickTask(), 1);
         $this->getScheduler()->scheduleRepeatingTask(new TwoFACleanupTask($this), 20);
