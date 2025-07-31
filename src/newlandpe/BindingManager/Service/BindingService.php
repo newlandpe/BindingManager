@@ -58,4 +58,8 @@ class BindingService {
     public function confirmUnbinding(string $playerName, string $code): bool {
         return $this->dataProvider->confirmUnbinding($playerName, $code);
     }
+
+    public function initiateUnbinding(int $telegramId): ?string {
+        return $this->dataProvider->initiateUnbinding($telegramId);
+    }
 }

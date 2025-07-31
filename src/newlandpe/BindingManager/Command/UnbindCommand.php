@@ -48,7 +48,7 @@ class UnbindCommand implements CommandInterface {
             return true;
         }
 
-        $code = $dataProvider->initiateUnbinding($fromId);
+        $code = $this->bindingService->initiateUnbinding($fromId);
         if ($code === null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-unbind-fail"));
             return true;
