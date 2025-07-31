@@ -132,6 +132,10 @@ telegram-reset-fail: "Не вдалося ініціювати скидання 
 # 2FA Login Attempt
 2fa-login-attempt: "Спроба входу виявлена з {ip}. Це були ви?"
 
+# 2FA Expiry and Completion
+2fa-login-expired: "Термін дії запиту на вхід закінчився для {player_name}. Будь ласка, спробуйте увійти ще раз."
+2fa-login-not-completed: "Вхід для {player_name} не завершено. Гравець вийшов з гри."
+
 # In-game Reset
 command-ingame-reset-initiated: "§eЗапит на відв'язку акаунта ініційовано. Ваш код для скидання: §f{code}§e. Надайте цей код адміністратору сервера, щоб завершити процес. На ваш Telegram-акаунт надіслано сповіщення."
 command-ingame-reset-fail: "§cНе вдалося ініціювати процес скидання. Можливо, ваш акаунт не прив'язаний."
