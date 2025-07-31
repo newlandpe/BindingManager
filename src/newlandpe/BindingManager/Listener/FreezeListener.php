@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace newlandpe\BindingManager\Listener;
 
 use newlandpe\BindingManager\Main;
-use pocketmine\event\Listener;
-use pocketmine\event\player\PlayerMoveEvent;
-use pocketmine\event\player\PlayerCommandPreprocessEvent;
-use pocketmine\event\player\PlayerChatEvent;
-use pocketmine\event\player\PlayerInteractEvent;
-use pocketmine\event\player\PlayerDropItemEvent;
 use pocketmine\event\entity\EntityDamageEvent;
+use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerChatEvent;
+use pocketmine\event\player\PlayerDropItemEvent;
+use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\event\server\CommandEvent;
 use pocketmine\player\Player;
 
 class FreezeListener implements Listener {
@@ -31,12 +31,15 @@ class FreezeListener implements Listener {
     /**
      * @param PlayerCommandPreprocessEvent $event
      */
-    public function onPlayerCommand(PlayerCommandPreprocessEvent $event): void {
-        $player = $event->getPlayer();
-        if ($this->plugin->getFreezeManager()->isPlayerFrozen($player)) {
+    public function onPlayerCommand(CommandEvent $event): void {
+        $sender = $event->getSender();
+        if (!$sender instanceof Player) {
+            return;
+        }
+        if ($this->plugin->getFreezeManager()->isPlayerFrozen($sender)) {
             $langManager = $this->plugin->getLanguageManager();
             if ($langManager !== null) {
-                $player->sendMessage($langManager->get("2fa-command-not-allowed"));
+                $sender->sendMessage($langManager->get("2fa-command-not-allowed"));
             }
             $event->cancel();
         }
