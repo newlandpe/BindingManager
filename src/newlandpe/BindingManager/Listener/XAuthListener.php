@@ -53,7 +53,7 @@ class XAuthListener implements Listener {
             ]
         ];
 
-        $bot->sendMessage($telegramId, "A login attempt was detected from " . $player->getNetworkSession()->getIp() . ". Was this you?", $keyboard);
+        $bot->sendMessage($telegramId, $lang->get("2fa-login-attempt", ["ip" => $player->getNetworkSession()->getIp()]), $keyboard);
         $player->sendMessage($lang->get("2fa-prompt"));
     }
 }
