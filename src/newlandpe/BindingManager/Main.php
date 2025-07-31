@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager;
 
+use newlandpe\BindingManager\Listener\FreezeListener;
 use newlandpe\BindingManager\Listener\NotificationListener;
 use newlandpe\BindingManager\Listener\XAuthListener;
 use newlandpe\BindingManager\Provider\DataProviderFactory;
@@ -82,6 +83,7 @@ class Main extends PluginBase {
 
         $this->getServer()->getPluginManager()->registerEvents(new NotificationListener(), $this);
         $this->getServer()->getPluginManager()->registerEvents(new XAuthListener($this), $this);
+        $this->getServer()->getPluginManager()->registerEvents(new FreezeListener($this), $this);
 
         $this->startPolling();
     }
