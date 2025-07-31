@@ -355,10 +355,6 @@ class Main extends PluginBase implements Listener {
         return $this->twoFactorAuthService;
     }
 
-    public function getBindingService(): ?BindingService {
-        return $this->bindingService;
-    }
-
     public function getUserState(int $userId): ?string {
         return $this->userStates[$userId] ?? null;
     }
