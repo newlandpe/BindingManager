@@ -261,8 +261,10 @@ class CallbackQueryHandler {
         if ($action === 'confirm') {
             $main->getFreezeManager()->unfreezePlayer($player);
             $player->sendMessage($main->getLanguageManager()->get("2fa-login-confirmed"));
-            // Manually call PlayerLoginEvent to allow XAuth to complete login
-            (new PlayerLoginEvent($player))->call();
+            $xauth = Server::getInstance()->getPluginManager()->getPlugin('XAuth');
+            if ($xauth instanceof XAuthMain) {
+                $xauth->forceLogin($player);
+            }
         } elseif ($action === 'deny') {
             $player->kick($main->getLanguageManager()->get("2fa-login-denied"));
         }

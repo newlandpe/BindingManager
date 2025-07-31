@@ -33,6 +33,8 @@ class XAuthListener implements Listener {
             return;
         }
 
+        $event->setAuthenticationDelayed(true);
+
         $this->plugin->getFreezeManager()->freezePlayer($player);
 
         $bot = $this->plugin->getBot();
