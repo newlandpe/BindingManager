@@ -150,7 +150,7 @@ class TelegramBot {
      * @param string $text
      * @param array<string, mixed>|null $replyMarkup
      */
-    public function sendMessage(int $chatId, string $text, ?array $replyMarkup = null): void {
+    public function sendMessage(int $chatId, string $text, ?array $replyMarkup = null): ?int {
         $params = [
             'chat_id' => $chatId,
             'text' => $text,
@@ -159,7 +159,11 @@ class TelegramBot {
         if ($replyMarkup !== null) {
             $params['reply_markup'] = json_encode($replyMarkup);
         }
-        $this->request('sendMessage', $params);
+        $response = $this->requestSync('sendMessage', $params);
+        if ($response !== null && isset($response['result']['message_id'])) {
+            return (int)$response['result']['message_id'];
+        }
+        return null;
     }
 
     /**
@@ -218,6 +222,64 @@ class TelegramBot {
 
         curl_setopt_array($ch, $curlOptions);
         AsyncRequestManager::getInstance()->addRequest($ch, $callback);
+    }
+
+    /**
+     * Synchronous request for internal use.
+     * @param string $method
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>|null
+     */
+    private function requestSync(string $method, array $params = []): ?array {
+        $url = 'https://api.telegram.org/bot' . $this->token . '/' . $method;
+        $ch = curl_init();
+        if ($ch === false) {
+            Server::getInstance()->getLogger()->error("[BindingManager] Failed to initialize cURL for sync request");
+            return null;
+        }
+
+        $curlOptions = [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POSTFIELDS => $params,
+            CURLOPT_TIMEOUT => 10
+        ];
+
+        $forceResolveHosts = $this->config->getNested("network.force-resolve-hosts", []);
+        if (is_array($forceResolveHosts) && count($forceResolveHosts) > 0) {
+            $resolveArray = [];
+            foreach ($forceResolveHosts as $host => $ip) {
+                $resolveArray[] = "{$host}:443:{$ip}";
+            }
+            $curlOptions[CURLOPT_RESOLVE] = $resolveArray;
+        }
+
+        $customCaBundle = $this->config->getNested("network.custom-ca-bundle", "");
+        if (is_string($customCaBundle) && $customCaBundle !== '') {
+            $curlOptions[CURLOPT_CAINFO] = $customCaBundle;
+        }
+
+        curl_setopt_array($ch, $curlOptions);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            Server::getInstance()->getLogger()->error("[BindingManager] Sync request failed: " . curl_error($ch));
+            return null;
+        }
+
+        $data = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+            Server::getInstance()->getLogger()->error("[BindingManager] Sync request JSON decode error: " . json_last_error_msg() . ". Response: " . $response);
+            return null;
+        }
+
+        if (($data['ok'] ?? false) === true) {
+            return $data;
+        }
+
+        Server::getInstance()->getLogger()->error("[BindingManager] Sync request API error: " . ($data['description'] ?? 'Unknown error'));
+        return null;
     }
 
     public function getUpdates(callable $callback): void {
