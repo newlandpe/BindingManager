@@ -206,10 +206,10 @@ class Main extends PluginBase implements Listener {
                         return true;
                     }
                     $code = $args[2];
-                    $dataProvider = $this->getDataProvider();
+                    $bindingService = $this->getBindingService();
                     $langManager = $this->getLanguageManager();
-                    if (!is_null($dataProvider) && !is_null($langManager)) {
-                        if ($dataProvider->confirmUnbinding($sender->getName(), $code)) {
+                    if (!is_null($bindingService) && !is_null($langManager)) {
+                        if ($bindingService->confirmUnbinding($sender->getName(), $code)) {
                             $sender->sendMessage($langManager->get("command-unbind-confirm-success"));
                         } else {
                             $sender->sendMessage($langManager->get("command-unbind-confirm-fail"));

@@ -54,4 +54,8 @@ class BindingService {
         }
         return false;
     }
+
+    public function confirmUnbinding(string $playerName, string $code): bool {
+        return $this->dataProvider->confirmUnbinding($playerName, $code);
+    }
 }
