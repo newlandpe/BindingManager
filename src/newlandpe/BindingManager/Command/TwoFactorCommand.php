@@ -38,7 +38,7 @@ class TwoFactorCommand implements CommandInterface {
             return true;
         }
 
-        $subCommand = strtolower($args[0] ?? 'status');
+        $subCommand = strtolower($args[0] ?? '');
 
         switch ($subCommand) {
             case 'enable':
