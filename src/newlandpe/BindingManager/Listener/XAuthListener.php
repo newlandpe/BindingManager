@@ -17,6 +17,9 @@ class XAuthListener implements Listener {
         $this->plugin = $plugin;
     }
 
+    /**
+     * @param PlayerLoginEvent $event
+     */
     public function onPlayerLogin(PlayerLoginEvent $event): void {
         $player = $event->getPlayer();
         $dataProvider = $this->plugin->getDataProvider();
