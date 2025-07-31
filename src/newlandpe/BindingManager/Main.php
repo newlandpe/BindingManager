@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace newlandpe\BindingManager;
 
 use newlandpe\BindingManager\Listener\NotificationListener;
+use newlandpe\BindingManager\Listener\XAuthListener;
 use newlandpe\BindingManager\Provider\DataProviderFactory;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\Task\RequestTickTask;
@@ -80,6 +81,7 @@ class Main extends PluginBase {
         }
 
         $this->getServer()->getPluginManager()->registerEvents(new NotificationListener(), $this);
+        $this->getServer()->getPluginManager()->registerEvents(new XAuthListener($this), $this);
 
         $this->startPolling();
     }
@@ -313,7 +315,7 @@ class Main extends PluginBase {
         return $this->bot;
     }
 
-    public function getFreezeManager(): FreezeManager {
+    public function getFreezeManager(): ?FreezeManager {
         return $this->freezeManager;
     }
 
