@@ -12,6 +12,8 @@ use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\TelegramBot;
 use pocketmine\Server;
+use newlandpe\BindingManager\TwoFAManager;
+use Luthfi\XAuth\event\PlayerLoginEvent;
 
 class CallbackQueryHandler {
 
@@ -234,9 +236,33 @@ class CallbackQueryHandler {
             return;
         }
 
+        $twoFAManager = $main->getTwoFAManager();
+        if ($twoFAManager === null) {
+            return;
+        }
+
+        $explodedData = explode(':', $context->callbackQuery['data']);
+        $code = $explodedData[3] ?? '';
+
+        $request = $twoFAManager->getRequest($playerName);
+
+        if ($request === null || $request['code'] !== $code) {
+            // Invalid or expired request, or code mismatch
+            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+            $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+            if ($chatId !== 0 && $messageId !== 0) {
+                $this->bot->editMessageText($chatId, $messageId, $main->getLanguageManager()->get("2fa-login-invalid-code"));
+            }
+            return;
+        }
+
+        $twoFAManager->removeRequest($playerName);
+
         if ($action === 'confirm') {
             $main->getFreezeManager()->unfreezePlayer($player);
             $player->sendMessage($main->getLanguageManager()->get("2fa-login-confirmed"));
+            // Manually call PlayerLoginEvent to allow XAuth to complete login
+            (new PlayerLoginEvent($player))->call();
         } elseif ($action === 'deny') {
             $player->kick($main->getLanguageManager()->get("2fa-login-denied"));
         }
