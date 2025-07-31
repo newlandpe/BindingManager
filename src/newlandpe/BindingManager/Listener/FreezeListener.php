@@ -31,14 +31,18 @@ class FreezeListener implements Listener {
     public function onPlayerCommand(PlayerCommandPreprocessEvent $event): void {
         $player = $event->getPlayer();
         if ($this->plugin->getFreezeManager()->isPlayerFrozen($player)) {
-            $player->sendMessage($this->plugin->getLanguageManager()->get("2fa-command-not-allowed"));
+            if ($this->plugin->getLanguageManager() !== null) {
+                $player->sendMessage($this->plugin->getLanguageManager()->get("2fa-command-not-allowed"));
+            }
             $event->cancel();
         }
     }
 
     public function onPlayerChat(PlayerChatEvent $event): void {
         if ($this->plugin->getFreezeManager()->isPlayerFrozen($event->getPlayer())) {
-            $event->getPlayer()->sendMessage($this->plugin->getLanguageManager()->get("2fa-chat-not-allowed"));
+            if ($this->plugin->getLanguageManager() !== null) {
+                $event->getPlayer()->sendMessage($this->plugin->getLanguageManager()->get("2fa-chat-not-allowed"));
+            }
             $event->cancel();
         }
     }

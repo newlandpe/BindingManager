@@ -23,10 +23,13 @@ class Main extends PluginBase {
     private int $offset = 0;
     /** @var array<int, string> */
     private array $userStates = [];
+    private ?FreezeManager $freezeManager = null;
 
     public function onEnable(): void {
         self::$instance = $this;
         $this->saveDefaultConfig();
+
+        $this->freezeManager = new FreezeManager();
 
         $this->getScheduler()->scheduleRepeatingTask(new RequestTickTask(), 1);
 
@@ -156,7 +159,10 @@ class Main extends PluginBase {
             }
 
             if (!isset($args[0])) {
-                $sender->sendMessage($this->languageManager->get("command-usage-tg"));
+                $langManager = $this->getLanguageManager();
+                if (!is_null($langManager)) {
+                    $sender->sendMessage($langManager->get("command-usage-tg"));
+                }
                 return true;
             }
 
@@ -172,11 +178,17 @@ class Main extends PluginBase {
                     return true;
                 case "unbind":
                     if (!isset($args[1]) || strtolower($args[1]) !== "confirm") {
-                        $sender->sendMessage($this->languageManager->get("command-usage-tg-unbind"));
+                        $langManager = $this->getLanguageManager();
+                        if (!is_null($langManager)) {
+                            $sender->sendMessage($langManager->get("command-usage-tg-unbind"));
+                        }
                         return true;
                     }
                     if (!isset($args[2]) || $args[2] === '') {
-                        $sender->sendMessage($this->languageManager->get("command-usage-tg-unbind"));
+                        $langManager = $this->getLanguageManager();
+                        if (!is_null($langManager)) {
+                            $sender->sendMessage($langManager->get("command-usage-tg-unbind"));
+                        }
                         return true;
                     }
                     $code = $args[2];
@@ -224,7 +236,10 @@ class Main extends PluginBase {
                         return true;
                     }
                     if (!isset($args[1]) || !isset($args[2])) {
-                        $sender->sendMessage("Usage: /tg confirmreset <playername> <code>");
+                        $langManager = $this->getLanguageManager();
+                        if (!is_null($langManager)) {
+                            $sender->sendMessage($langManager->get("command-usage-tg-confirmreset"));
+                        }
                         return true;
                     }
                     $playerName = $args[1];
@@ -249,7 +264,10 @@ class Main extends PluginBase {
                         return true;
                     }
                     if (!isset($args[1]) || $args[1] === '') {
-                        $sender->sendMessage("Usage: /tg forceunbind <playername>");
+                        $langManager = $this->getLanguageManager();
+                        if (!is_null($langManager)) {
+                            $sender->sendMessage($langManager->get("command-usage-tg-forceunbind"));
+                        }
                         return true;
                     }
                     $playerName = $args[1];
@@ -269,7 +287,10 @@ class Main extends PluginBase {
                     }
                     return true;
                 default:
-                    $sender->sendMessage($this->languageManager->get("command-unknown-subcommand"));
+                    $langManager = $this->getLanguageManager();
+                    if (!is_null($langManager)) {
+                        $sender->sendMessage($langManager->get("command-unknown-subcommand"));
+                    }
                     return true;
             }
         }

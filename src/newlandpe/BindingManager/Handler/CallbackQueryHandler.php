@@ -11,6 +11,7 @@ use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\TelegramBot;
+use pocketmine\Server;
 
 class CallbackQueryHandler {
 
@@ -83,6 +84,10 @@ class CallbackQueryHandler {
             case 'unbind':
                 $this->handleUnbindMenu($context, $action);
                 break;
+            case '2fa':
+                $playerName = $explodedData[2] ?? '';
+                $this->handle2FAMenu($context, $action, $playerName);
+                break;
             // No default case: we simply ignore unknown menus
         }
     }
@@ -112,7 +117,9 @@ class CallbackQueryHandler {
                 }
                 break;
             case 'help':
-                $bot->sendMessage($chatId, $lang->get('telegram-help'));
+                if ($lang !== null) {
+                    $bot->sendMessage($chatId, $lang->get('telegram-help'));
+                }
                 break;
         }
     }
@@ -140,7 +147,9 @@ class CallbackQueryHandler {
                 $main = Main::getInstance();
                 if ($main !== null) {
                     $main->setUserState($fromId, 'awaiting_nickname');
-                    $bot->sendMessage($chatId, $lang->get('telegram-enter-nickname'));
+                    if ($lang !== null) {
+                        $bot->sendMessage($chatId, $lang->get('telegram-enter-nickname'));
+                    }
                 }
                 break;
             case 'myinfo':
@@ -164,7 +173,9 @@ class CallbackQueryHandler {
             case 'notifications':
                 $isEnabled = $dataProvider->toggleNotifications($fromId);
                 $status = $isEnabled ? 'enabled' : 'disabled';
-                $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}"));
+                if ($lang !== null) {
+                    $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}"));
+                }
                 break;
             case 'cancel':
                 $messageId = 0;
@@ -176,8 +187,10 @@ class CallbackQueryHandler {
                     $main = Main::getInstance();
                     if ($main !== null) {
                         $main->setUserState($fromId, null); // Reset state
+                        if ($lang !== null) {
+                            $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));
+                        }
                     }
-                    $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));
                 }
                 break;
         }
@@ -211,8 +224,10 @@ class CallbackQueryHandler {
                     $main = Main::getInstance();
                     if ($main !== null) {
                         $main->setUserState($fromId, null); // Reset state
+                        if ($lang !== null) {
+                            $bot->editMessageText($chatId, $messageId, $lang->get('telegram-unbind-cancelled'));
+                        }
                     }
-                    $bot->editMessageText($chatId, $messageId, $lang->get('telegram-unbind-cancelled'));
                 }
                 break;
         }
@@ -231,9 +246,13 @@ class CallbackQueryHandler {
 
         if ($action === 'confirm') {
             $main->getFreezeManager()->unfreezePlayer($player);
-            $player->sendMessage($main->getLanguageManager()->get("2fa-login-confirmed"));
+            if ($main->getLanguageManager() !== null) {
+                $player->sendMessage($main->getLanguageManager()->get("2fa-login-confirmed"));
+            }
         } elseif ($action === 'deny') {
-            $player->kick($main->getLanguageManager()->get("2fa-login-denied"));
+            if ($main->getLanguageManager() !== null) {
+                $player->kick($main->getLanguageManager()->get("2fa-login-denied"));
+            }
         }
 
         $chatId = 0;
@@ -246,7 +265,9 @@ class CallbackQueryHandler {
         }
 
         if ($chatId !== 0 && $messageId !== 0) {
-            $this->bot->editMessageText($chatId, $messageId, $main->getLanguageManager()->get("2fa-selection-made"));
+            if ($main->getLanguageManager() !== null) {
+                $this->bot->editMessageText($chatId, $messageId, $main->getLanguageManager()->get("2fa-selection-made"));
+            }
         }
     }
 }

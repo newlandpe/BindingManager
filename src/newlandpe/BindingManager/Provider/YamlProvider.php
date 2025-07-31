@@ -273,12 +273,15 @@ class YamlProvider implements DataProviderInterface {
 
     public function isTwoFactorEnabled(int $telegramId): bool {
         $data = $this->dataFile->get((string)$telegramId);
-        return is_array($data) && ($data['two_factor_enabled'] ?? false);
+        if (is_array($data)) {
+            return (bool)($data['two_factor_enabled'] ?? false);
+        }
+        return false;
     }
 
     public function setTwoFactor(int $telegramId, bool $enabled): void {
-        if ($this->dataFile->exists((string)$telegramId)) {
-            $data = $this->dataFile->get((string)$telegramId);
+        $data = $this->dataFile->get((string)$telegramId);
+        if (is_array($data)) {
             $data['two_factor_enabled'] = $enabled;
             $this->dataFile->set((string)$telegramId, $data);
             $this->dataFile->save();
