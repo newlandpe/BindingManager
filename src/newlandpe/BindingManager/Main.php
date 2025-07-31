@@ -10,6 +10,7 @@ use newlandpe\BindingManager\Listener\XAuthListener;
 use newlandpe\BindingManager\Provider\DataProviderFactory;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\Task\RequestTickTask;
+use newlandpe\BindingManager\Task\TwoFACleanupTask;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\event\Listener;
@@ -38,6 +39,7 @@ class Main extends PluginBase implements Listener {
         $this->twoFAManager = new TwoFAManager();
 
         $this->getScheduler()->scheduleRepeatingTask(new RequestTickTask(), 1);
+        $this->getScheduler()->scheduleRepeatingTask(new TwoFACleanupTask($this), 20);
 
         $this->saveResource("languages/en.yml");
         $this->saveResource("languages/uk.yml");

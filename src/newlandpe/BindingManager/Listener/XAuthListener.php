@@ -6,6 +6,7 @@ namespace newlandpe\BindingManager\Listener;
 
 use Luthfi\XAuth\event\PlayerLoginEvent;
 use newlandpe\BindingManager\Main;
+use newlandpe\BindingManager\TwoFAManager;
 use pocketmine\event\Listener;
 use pocketmine\player\Player;
 
@@ -44,16 +45,27 @@ class XAuthListener implements Listener {
             return;
         }
 
+        $twoFAManager = $this->plugin->getTwoFAManager();
+        if ($twoFAManager === null) {
+            return;
+        }
+
+        $code = $twoFAManager->generateUniqueCode();
+        $expiry = time() + (int)$this->plugin->getConfig()->get("2fa_timeout_seconds", 120); // Configurable expiry
+
         $keyboard = [
             'inline_keyboard' => [
                 [
-                    ['text' => $lang->get("2fa-keyboard-confirm"), 'callback_data' => '2fa:confirm:' . $player->getName()],
-                    ['text' => $lang->get("2fa-keyboard-deny"), 'callback_data' => '2fa:deny:' . $player->getName()]
+                    ['text' => $lang->get("2fa-keyboard-confirm"), 'callback_data' => '2fa:confirm:' . $player->getName() . ':' . $code],
+                    ['text' => $lang->get("2fa-keyboard-deny"), 'callback_data' => '2fa:deny:' . $player->getName() . ':' . $code]
                 ]
             ]
         ];
 
-        $bot->sendMessage($telegramId, $lang->get("2fa-login-attempt", ["ip" => $player->getNetworkSession()->getIp()]), $keyboard);
+        $messageId = $bot->sendMessage($telegramId, $lang->get("2fa-login-attempt", ["ip" => $player->getNetworkSession()->getIp()]), $keyboard);
+        if ($messageId !== null) {
+            $twoFAManager->addRequest($player->getName(), $telegramId, $messageId, $code, $expiry);
+        }
         $player->sendMessage($lang->get("2fa-prompt"));
     }
 }

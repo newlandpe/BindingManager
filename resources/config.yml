@@ -2,6 +2,7 @@ telegram_token: "YOUR_TELEGRAM_BOT_TOKEN" # Replace with your actual Telegram bo
 language: "en" # Available languages: en, uk
 code_length_bytes: 3 # Length of generated codes in bytes (e.g., 3 bytes = 6 hex characters)
 binding_code_timeout_seconds: 300 # Timeout for binding/unbinding codes in seconds (default: 300 seconds = 5 minutes)
+2fa_timeout_seconds: 120 # Timeout for 2FA login requests in seconds (default: 120 seconds = 2 minutes)
 
 # A list of Telegram user IDs that will have administrative privileges in the bot.
 # To get your ID, send a message to the @userinfobot bot.
