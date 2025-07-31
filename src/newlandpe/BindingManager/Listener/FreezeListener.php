@@ -135,7 +135,8 @@ class FreezeListener implements Listener {
     }
 
     public function onPlayerToggleSprint(PlayerToggleSprintEvent $event): void {
-        if ($this->plugin->getFreezeManager()->isPlayerFrozen($event->getPlayer())) {
+        $twoFactorAuthService = $this->plugin->getTwoFactorAuthService();
+        if ($twoFactorAuthService !== null && $twoFactorAuthService->isPlayerFrozen($event->getPlayer())) {
             $event->cancel();
         }
     }

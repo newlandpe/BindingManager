@@ -236,15 +236,15 @@ class CallbackQueryHandler {
             return;
         }
 
-        $twoFAManager = $main->getTwoFAManager();
-        if ($twoFAManager === null) {
+        $twoFactorAuthService = $main->getTwoFactorAuthService();
+        if ($twoFactorAuthService === null) {
             return;
         }
 
         $explodedData = explode(':', $context->callbackQuery['data']);
         $code = $explodedData[3] ?? '';
 
-        $request = $twoFAManager->getRequest($playerName);
+        $request = $twoFactorAuthService->getRequest($playerName);
 
         if ($request === null || $request['code'] !== $code) {
             // Invalid or expired request, or code mismatch
@@ -256,10 +256,10 @@ class CallbackQueryHandler {
             return;
         }
 
-        $twoFAManager->removeRequest($playerName);
+        $twoFactorAuthService->removeRequest($playerName);
 
         if ($action === 'confirm') {
-            $main->getFreezeManager()->unfreezePlayer($player);
+            $twoFactorAuthService->unfreezePlayer($player);
             $player->sendMessage($main->getLanguageManager()->get("2fa-login-confirmed"));
             $xauth = Server::getInstance()->getPluginManager()->getPlugin('XAuth');
             if ($xauth instanceof XAuthMain) {

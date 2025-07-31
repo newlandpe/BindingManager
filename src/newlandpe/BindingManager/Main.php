@@ -315,12 +315,12 @@ class Main extends PluginBase implements Listener {
         $player = $event->getPlayer();
         $playerName = strtolower($player->getName());
 
-        $twoFAManager = $this->getTwoFAManager();
-        if ($twoFAManager === null) {
+        $twoFactorAuthService = $this->getTwoFactorAuthService();
+        if ($twoFactorAuthService === null) {
             return;
         }
 
-        $request = $twoFAManager->getRequest($playerName);
+        $request = $twoFactorAuthService->getRequest($playerName);
         if ($request !== null) {
             $bot = $this->getBot();
             $lang = $this->getLanguageManager();
@@ -331,7 +331,7 @@ class Main extends PluginBase implements Listener {
                     $lang->get("2fa-login-not-completed", ["player_name" => $player->getName()])
                 );
             }
-            $twoFAManager->removeRequest($playerName);
+            $twoFactorAuthService->removeRequest($playerName);
         }
     }
 
@@ -351,12 +351,8 @@ class Main extends PluginBase implements Listener {
         return $this->bot;
     }
 
-    public function getFreezeManager(): ?FreezeManager {
-        return $this->freezeManager;
-    }
-
-    public function getTwoFAManager(): ?TwoFAManager {
-        return $this->twoFAManager;
+    public function getTwoFactorAuthService(): ?TwoFactorAuthService {
+        return $this->twoFactorAuthService;
     }
 
     public function getBindingService(): ?BindingService {

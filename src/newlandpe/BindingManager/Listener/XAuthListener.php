@@ -33,9 +33,14 @@ class XAuthListener implements Listener {
             return;
         }
 
+        $twoFactorAuthService = $this->plugin->getTwoFactorAuthService();
+        if ($twoFactorAuthService === null) {
+            return;
+        }
+
         $event->setAuthenticationDelayed(true);
 
-        $this->plugin->getFreezeManager()->freezePlayer($player);
+        $twoFactorAuthService->freezePlayer($player);
 
         $bot = $this->plugin->getBot();
         if ($bot === null) {
@@ -47,12 +52,7 @@ class XAuthListener implements Listener {
             return;
         }
 
-        $twoFAManager = $this->plugin->getTwoFAManager();
-        if ($twoFAManager === null) {
-            return;
-        }
-
-        $code = $twoFAManager->generateUniqueCode();
+        $code = $twoFactorAuthService->generateUniqueCode();
         $expiry = time() + (int)$this->plugin->getConfig()->get("2fa_timeout_seconds", 120); // Configurable expiry
 
         $keyboard = [
@@ -66,7 +66,7 @@ class XAuthListener implements Listener {
 
         $messageId = $bot->sendMessage($telegramId, $lang->get("2fa-login-attempt", ["ip" => $player->getNetworkSession()->getIp()]), $keyboard);
         if ($messageId !== null) {
-            $twoFAManager->addRequest($player->getName(), $telegramId, $messageId, $code, $expiry);
+            $twoFactorAuthService->addRequest($player->getName(), $telegramId, $messageId, $code, $expiry);
         }
         $player->sendMessage($lang->get("2fa-prompt"));
     }

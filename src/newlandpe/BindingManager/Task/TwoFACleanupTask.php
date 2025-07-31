@@ -16,10 +16,10 @@ class TwoFACleanupTask extends Task {
     }
 
     public function onRun(): void {
-        $twoFAManager = $this->plugin->getTwoFAManager();
+        $twoFactorAuthService = $this->plugin->getTwoFactorAuthService();
 
-        if ($twoFAManager !== null) {
-            $twoFAManager->cleanupExpiredRequests($this->plugin);
+        if ($twoFactorAuthService !== null) {
+            $twoFactorAuthService->cleanupExpiredRequests($this->plugin);
         }
     }
 }
