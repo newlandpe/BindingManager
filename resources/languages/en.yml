@@ -114,7 +114,7 @@ telegram-reset-fail: "Failed to initiate account reset. You may not have a bound
 2fa-status-enabled: "Two-factor authentication is currently enabled."
 2fa-status-disabled: "Two-factor authentication is currently disabled."
 2fa-not-bound: "You must bind your account before enabling two-factor authentication."
-2fa-usage: "Usage: /2fa <enable|disable|status>"
+2fa-usage: "Usage: /2fa &lt;enable|disable|status&gt;"
 
 # 2FA Prompts
 2fa-prompt: "§ePlease check your Telegram for a message to confirm your login."
