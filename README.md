@@ -1,6 +1,5 @@
 # BindingManager
 
-[![Static Analysis](https://img.shields.io/github/actions/workflow/status/newlandpe/BindingManager/php_checks.yml?label=PHPStan&logo=github)](https://github.com/newlandpe/BindingManager/actions/workflows/php_checks.yml)
 [![Poggit CI](https://poggit.pmmp.io/ci.shield/newlandpe/BindingManager/BindingManager)](https://poggit.pmmp.io/ci/newlandpe/BindingManager/BindingManager)
 
 A PocketMine-MP plugin to bind player accounts to Telegram for authentication, notifications, and more. This plugin provides a flexible API for other plugins to extend its functionality.
