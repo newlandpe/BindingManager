@@ -83,6 +83,7 @@ class Main extends PluginBase implements Listener {
             return;
         }
 
+        $this->bindingService = new BindingService($this->dataProvider);
         $this->bot = new TelegramBot($token, $this->getConfig(), $this->languageManager);
         if (!$this->bot->initialize()) {
             $this->getLogger()->error("Failed to get bot info, disabling plugin.");
@@ -152,10 +153,10 @@ class Main extends PluginBase implements Listener {
                 $sender->sendMessage("Usage: /confirm <code>");
                 return true;
             }
-            $dataProvider = $this->getDataProvider();
+            $bindingService = $this->getBindingService();
             $langManager = $this->getLanguageManager();
-            if (!is_null($dataProvider) && !is_null($langManager)) {
-                if ($dataProvider->confirmBinding($sender->getName(), $args[0])) {
+            if (!is_null($bindingService) && !is_null($langManager)) {
+                if ($bindingService->confirmBinding($sender->getName(), $args[0])) {
                     $sender->sendMessage($langManager->get("command-confirm-success"));
                 } else {
                     $sender->sendMessage($langManager->get("command-confirm-fail"));
@@ -356,6 +357,10 @@ class Main extends PluginBase implements Listener {
 
     public function getTwoFAManager(): ?TwoFAManager {
         return $this->twoFAManager;
+    }
+
+    public function getBindingService(): ?BindingService {
+        return $this->bindingService;
     }
 
     public function getUserState(int $userId): ?string {

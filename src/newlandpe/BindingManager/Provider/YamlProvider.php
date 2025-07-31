@@ -100,15 +100,6 @@ class YamlProvider implements DataProviderInterface {
                 return false; // Code expired
             }
 
-            $player = Server::getInstance()->getPlayerExact($playerName);
-            if ($player !== null) {
-                $event = new AccountBoundEvent($player, $telegramId);
-                $event->call();
-                if ($event->isCancelled()) {
-                    return false;
-                }
-            }
-
             $data['confirmed'] = true;
             unset($data['code'], $data['timestamp']); // Clean up used code and timestamp
             $this->dataFile->set((string)$telegramId, $data);

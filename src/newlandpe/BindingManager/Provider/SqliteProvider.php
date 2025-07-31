@@ -111,16 +111,6 @@ class SqliteProvider implements DataProviderInterface {
             return false; // Not found or expired
         }
 
-        $player = Server::getInstance()->getPlayerExact($playerName);
-        if ($player !== null) {
-            $telegramId = (int)($data['telegram_id'] ?? 0);
-            $event = new AccountBoundEvent($player, $telegramId);
-            $event->call();
-            if ($event->isCancelled()) {
-                return false;
-            }
-        }
-
         $updateStmt = $this->db->prepare("UPDATE bindings SET confirmed = 1, code = NULL, timestamp = NULL WHERE player_name = :name");
         if ($updateStmt === false) return false;
         $updateStmt->bindValue(':name', $playerName, SQLITE3_TEXT);
