@@ -100,7 +100,7 @@ class BindingService {
 
         $player = Server::getInstance()->getPlayerExact($playerName);
         if ($player !== null) {
-            $event = new AccountBoundEvent($player, $telegramId);
+            $event = new AccountBoundEvent($this->plugin, $player, $telegramId);
             $event->call();
             if ($event->isCancelled()) {
                 $this->dataProvider->removePermanentBinding($telegramId, $playerName);
