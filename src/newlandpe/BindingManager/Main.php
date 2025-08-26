@@ -77,7 +77,7 @@ class Main extends PluginBase implements Listener {
         $this->container = new ServiceContainer();
         $this->registerServices();
 
-        $this->getScheduler()->scheduleRepeatingTask(new RequestTickTask($this->container), 1);
+        $this->getScheduler()->scheduleRepeatingTask(new RequestTickTask(), 1);
         $this->getScheduler()->scheduleRepeatingTask(new TwoFACleanupTask($this->container->get(TwoFactorAuthService::class)), 20);
         $this->getScheduler()->scheduleRepeatingTask(new BindingCleanupTask($this->container->get(BindingService::class)), 20 * 60 * 60);
 
