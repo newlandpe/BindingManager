@@ -1,73 +1,60 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Listener;
 
-use Luthfi\XAuth\event\PlayerLoginEvent;
-use newlandpe\BindingManager\Main;
-use newlandpe\BindingManager\Service\TwoFAManager;
+use Luthfi\XAuth\event\PlayerUnregisterEvent;
+use newlandpe\BindingManager\Event\AccountUnboundEvent;
+use newlandpe\BindingManager\Service\BindingService;
+use newlandpe\BindingManager\Util\ServiceContainer;
 use pocketmine\event\Listener;
-use pocketmine\player\Player;
 
 class XAuthListener implements Listener {
 
-    private Main $plugin;
+    private BindingService $bindingService;
 
-    public function __construct(Main $plugin) {
-        $this->plugin = $plugin;
+    public function __construct(ServiceContainer $container) {
+        $this->bindingService = $container->get(BindingService::class);
     }
 
     /**
-     * @param PlayerLoginEvent $event
+     * Called when a player unregisters their XAuth account.
+     * We will unbind their account from BindingManager as well.
+     *
+     * @param PlayerUnregisterEvent $event
+     * @priority NORMAL
+     * @ignoreCancelled true
      */
-    public function onPlayerLogin(PlayerLoginEvent $event): void {
-        $player = $event->getPlayer();
-        $dataProvider = $this->plugin->getDataProvider();
-        if ($dataProvider === null) {
-            return;
+    public function onPlayerUnregister(PlayerUnregisterEvent $event): void {
+        $playerName = $event->getPlayer()->getName();
+        $telegramId = $this->bindingService->getTelegramIdByPlayerName($playerName);
+
+        if ($telegramId !== null) {
+            $this->bindingService->removePermanentBinding($telegramId, $playerName, AccountUnboundEvent::CAUSE_XAUTH_UNREGISTER);
         }
-
-        $telegramId = $dataProvider->getTelegramIdByPlayerName($player->getName());
-        if ($telegramId === null || !$dataProvider->isTwoFactorEnabled($telegramId)) {
-            return;
-        }
-
-        $twoFactorAuthService = $this->plugin->getTwoFactorAuthService();
-        if ($twoFactorAuthService === null) {
-            return;
-        }
-
-        $event->setAuthenticationDelayed(true);
-
-        $twoFactorAuthService->freezePlayer($player);
-
-        $bot = $this->plugin->getBot();
-        if ($bot === null) {
-            return;
-        }
-
-        $lang = $this->plugin->getLanguageManager();
-        if ($lang === null) {
-            return;
-        }
-
-        $code = $twoFactorAuthService->generateUniqueCode();
-        $expiry = time() + (int)$this->plugin->getConfig()->get("2fa_timeout_seconds", 120); // Configurable expiry
-
-        $keyboard = [
-            'inline_keyboard' => [
-                [
-                    ['text' => $lang->get("2fa-keyboard-confirm"), 'callback_data' => '2fa:confirm:' . $player->getName() . ':' . $code],
-                    ['text' => $lang->get("2fa-keyboard-deny"), 'callback_data' => '2fa:deny:' . $player->getName() . ':' . $code]
-                ]
-            ]
-        ];
-
-        $messageId = $bot->sendMessage($telegramId, $lang->get("2fa-login-attempt", ["ip" => $player->getNetworkSession()->getIp()]), $keyboard);
-        if ($messageId !== null) {
-            $twoFactorAuthService->addRequest($player->getName(), $telegramId, $messageId, $code, $expiry);
-        }
-        $player->sendMessage($lang->get("2fa-prompt"));
     }
 }

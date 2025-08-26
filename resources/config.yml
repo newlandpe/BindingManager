@@ -1,8 +1,15 @@
-telegram_token: "YOUR_TELEGRAM_BOT_TOKEN" # Replace with your actual Telegram bot token
+# BindingManager Configuration
+
+telegram-token: "YOUR_TELEGRAM_BOT_TOKEN" # Replace with your actual Telegram bot token
 language: "en" # Available languages: en, uk
-code_length_bytes: 3 # Length of generated codes in bytes (e.g., 3 bytes = 6 hex characters)
-binding_code_timeout_seconds: 300 # Timeout for binding/unbinding codes in seconds (default: 300 seconds = 5 minutes)
-2fa_timeout_seconds: 120 # Timeout for 2FA login requests in seconds (default: 120 seconds = 2 minutes)
+code-length-bytes: 3 # Length of generated codes in bytes (e.g., 3 bytes = 6 hex characters)
+binding-code-timeout-seconds: 300 # Timeout for binding/unbinding codes in seconds (default: 300 seconds = 5 minutes)
+2fa-timeout-seconds: 120 # Timeout for 2FA login requests in seconds (default: 120 seconds = 2 minutes)
+
+# 2FA Mode:
+# - "after_password": (Default) Trigger 2FA only after a successful password login via XAuth.
+# - "always": Trigger 2FA on every player join, regardless of previous authentication steps (e.g., even after auto-login).
+two-factor-mode: "after_password"
 
 # A list of Telegram user IDs that will have administrative privileges in the bot.
 # To get your ID, send a message to the @userinfobot bot.
@@ -11,21 +18,20 @@ admins:
   - 987654321 # Replace with another Telegram user ID
 
 database:
-  # Available providers: json, sqlite, mysql, yaml
-  provider: "json"
-  json:
-    file: "bindings.json"
+  # Available providers: sqlite, mysql
+  provider: "sqlite"
   sqlite:
     file: "bindings.sqlite"
+    bindings-table: "bindings"
+    codes-table: "temporary_codes"
   mysql:
     host: "localhost"
     port: 3306
     user: "root"
     password: "password"
     database: "binding_manager"
-    table: "bindings"
-  yaml:
-    file: "bindings.yml"
+    bindings-table: "bindings"
+    codes-table: "temporary_codes"
 
 network:
   # Allows forcing a domain name to resolve to a specific IP address.

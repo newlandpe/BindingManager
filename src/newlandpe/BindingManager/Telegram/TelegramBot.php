@@ -1,5 +1,28 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Telegram;
@@ -8,7 +31,10 @@ use newlandpe\BindingManager\Command\CommandContext;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\Handler\CallbackQueryHandler;
 use newlandpe\BindingManager\Handler\CommandHandler;
+use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
+use newlandpe\BindingManager\Service\OffsetManager;
+use newlandpe\BindingManager\Service\UserStateManager;
 use pocketmine\Server;
 use pocketmine\utils\Config;
 
@@ -18,16 +44,27 @@ class TelegramBot {
     private string $username = '';
     private int $id = 0;
     private CommandHandler $commandHandler;
-    private CallbackQueryHandler $callbackQueryHandler;
+    private ?CallbackQueryHandler $callbackQueryHandler = null;
     private KeyboardFactory $keyboardFactory;
     private Config $config;
+    private OffsetManager $offsetManager;
+    private UserStateManager $userStateManager;
+    private ?TwoFactorAuthService $twoFactorAuthService = null;
 
-    public function __construct(string $token, Config $config, LanguageManager $lang, BindingService $bindingService) {
+    public function __construct(string $token, Config $config, KeyboardFactory $keyboardFactory, OffsetManager $offsetManager, UserStateManager $userStateManager) {
         $this->token = $token;
         $this->config = $config;
-        $this->keyboardFactory = new KeyboardFactory($lang);
-        $this->commandHandler = new CommandHandler($this, $this->keyboardFactory, $bindingService);
-        $this->callbackQueryHandler = new CallbackQueryHandler($this, $this->keyboardFactory, $bindingService);
+        $this->keyboardFactory = $keyboardFactory;
+        $this->offsetManager = $offsetManager;
+        $this->userStateManager = $userStateManager;
+    }
+
+    public function setCommandHandler(CommandHandler $commandHandler): void {
+        $this->commandHandler = $commandHandler;
+    }
+
+    public function setCallbackQueryHandler(CallbackQueryHandler $callbackQueryHandler): void {
+        $this->callbackQueryHandler = $callbackQueryHandler;
     }
 
     public function initialize(): bool {
@@ -89,8 +126,7 @@ class TelegramBot {
         return $this->id;
     }
 
-    public function getCommandHandler(): CommandHandler
-    {
+    public function getCommandHandler(): CommandHandler {
         return $this->commandHandler;
     }
 
@@ -99,10 +135,6 @@ class TelegramBot {
      */
     public function processUpdate(array $update, LanguageManager $lang, DataProviderInterface $dataProvider): void {
         $logger = Server::getInstance()->getLogger();
-        // $logger->info("[BindingManager] Processing update ID: " . ($update['update_id'] ?? 'N/A'));
-
-        $main = Main::getInstance();
-        if ($main === null) return;
 
         $chatId = 0;
         $keyboardFactory = $this->keyboardFactory;
@@ -115,24 +147,23 @@ class TelegramBot {
             $text = $update['message']['text'] ?? null;
 
             if ($fromId !== 0 && $text !== null) {
-                $state = $main->getUserState($fromId);
+                $state = $this->userStateManager->getUserState($fromId);
                 if ($state === 'awaiting_nickname') {
                     if (strtolower($text) === '/cancel') {
-                        $main->setUserState($fromId, null); // Reset state
+                        $this->userStateManager->setUserState($fromId, null); // Reset state
                         $this->sendMessage($chatId, $lang->get("telegram-binding-cancelled"));
                         return; // Exit after handling cancel
                     }
-                    $main->setUserState($fromId, null); // Reset state
+                    $this->userStateManager->setUserState($fromId, null); // Reset state
                     $command = $this->commandHandler->findCommand('binding');
                     if ($command !== null) {
-                        $keyboardFactory = new KeyboardFactory();
-                        $context = new CommandContext($this, $lang, $dataProvider, $keyboardFactory, $update['message'], [$text]);
+                        $context = new CommandContext($update['message'], [$text]);
                         $command->execute($context);
                     }
                     return;
                 } elseif ($state === 'awaiting_unbind_confirm') {
                     if (strtolower($text) === '/cancel') {
-                        $main->setUserState($fromId, null); // Reset state
+                        $this->userStateManager->setUserState($fromId, null); // Reset state
                         $this->sendMessage($chatId, $lang->get("telegram-unbind-cancelled"));
                         return;
                     }
@@ -283,13 +314,8 @@ class TelegramBot {
     }
 
     public function getUpdates(callable $callback): void {
-        $main = Main::getInstance();
-        if ($main === null) {
-            $callback([]);
-            return;
-        }
         $params = [
-            'offset' => $main->getOffset(),
+            'offset' => $this->offsetManager->getOffset(),
             'timeout' => 30, // Use long-polling
             'allowed_updates' => json_encode(['message', 'callback_query'])
         ];
@@ -319,6 +345,19 @@ class TelegramBot {
                 }
                 $callback([]);
             }
+        });
+    }
+
+    public function startPolling(): void {
+        $this->getUpdates(function(array $updates) {
+            foreach ($updates as $update) {
+                if (isset($update['update_id'])) {
+                    $this->offsetManager->setOffset($update['update_id'] + 1);
+                }
+                $this->processUpdate($update, Server::getInstance()->getPluginManager()->getPlugin("BindingManager")->getContainer()->get(LanguageManager::class), Server::getInstance()->getPluginManager()->getPlugin("BindingManager")->getContainer()->get(DataProviderInterface::class));
+            }
+            // Continue polling
+            $this->startPolling();
         });
     }
 }

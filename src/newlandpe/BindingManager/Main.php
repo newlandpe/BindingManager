@@ -1,368 +1,217 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_| 
+ *                              |___/                          |___/ 
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager;
 
-use newlandpe\BindingManager\Listener\FreezeListener;
+use newlandpe\BindingManager\Command\AdminPlayerInfoCommand;
+use newlandpe\BindingManager\Command\BindingCommand;
+use newlandpe\BindingManager\Command\CommandInterface;
+use newlandpe\BindingManager\Command\Game\ConfirmCommand;
+use newlandpe\BindingManager\Command\Game\TgCommand;
+use newlandpe\BindingManager\Command\HelpCommand;
+use newlandpe\BindingManager\Command\MyInfoCommand;
+use newlandpe\BindingManager\Command\ResetBindingCommand;
+use newlandpe\BindingManager\Command\StartCommand;
+use newlandpe\BindingManager\Command\TwoFactorCommand;
+use newlandpe\BindingManager\Command\UnbindCommand;
+use newlandpe\BindingManager\Handler\CallbackQueryHandler;
+use newlandpe\BindingManager\Handler\CommandHandler;
+use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\Listener\NotificationListener;
 use newlandpe\BindingManager\Listener\XAuthListener;
 use newlandpe\BindingManager\Provider\DataProviderFactory;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\Service\BindingService;
+use newlandpe\BindingManager\Service\PersistentOffsetManager;
+use newlandpe\BindingManager\Service\PersistentUserStateManager;
+use newlandpe\BindingManager\Service\OffsetManager;
 use newlandpe\BindingManager\Service\TwoFactorAuthService;
+use newlandpe\BindingManager\Service\UserStateManager;
+use newlandpe\BindingManager\Steps\BindingManager2FAStep;
+use newlandpe\BindingManager\Task\BindingCleanupTask;
 use newlandpe\BindingManager\Task\RequestTickTask;
 use newlandpe\BindingManager\Task\TwoFACleanupTask;
 use newlandpe\BindingManager\Telegram\TelegramBot;
-use pocketmine\command\Command;
-use pocketmine\command\CommandSender;
+use newlandpe\BindingManager\Util\CodeGenerator;
+use newlandpe\BindingManager\Util\ServiceContainer;
 use pocketmine\event\Listener;
-use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\plugin\PluginBase;
 use pocketmine\player\Player;
 use pocketmine\scheduler\Task;
 
 class Main extends PluginBase implements Listener {
 
-    private static ?self $instance = null;
-    private ?DataProviderInterface $dataProvider = null;
-    private ?LanguageManager $languageManager = null;
-    private ?TelegramBot $bot = null;
-    private int $offset = 0;
-    /** @var array<int, string> */
-    private array $userStates = [];
-    private ?TwoFactorAuthService $twoFactorAuthService = null;
-    private ?BindingService $bindingService = null;
+    private ServiceContainer $container;
 
     public function onEnable(): void {
-        self::$instance = $this;
         $this->saveDefaultConfig();
 
-        $this->twoFactorAuthService = new TwoFactorAuthService();
-
-        $this->getScheduler()->scheduleRepeatingTask(new RequestTickTask(), 1);
-        $this->getScheduler()->scheduleRepeatingTask(new TwoFACleanupTask($this), 20);
-
+        // Ensure language directory exists and save default languages
         $this->saveResource("languages/en.yml");
         $this->saveResource("languages/uk.yml");
 
-        $language = $this->getConfig()->get("language", "en");
-        if (!is_string($language)) {
-            $language = "en";
-        }
-        $this->languageManager = new LanguageManager($language);
+        $this->container = new ServiceContainer();
+        $this->registerServices();
 
-        $databaseConfig = $this->getConfig()->get("database", []);
-        if (!is_array($databaseConfig)) {
-            $databaseConfig = [];
-        }
-        $codeLengthBytes = $this->getConfig()->get("code_length_bytes", 3); // Default to 3 bytes
-        if (!is_int($codeLengthBytes) || $codeLengthBytes <= 0) {
-            $this->getLogger()->warning("Invalid 'code_length_bytes' in config.yml. Using default value of 3.");
-            $codeLengthBytes = 3;
-        }
-        $databaseConfig['code_length_bytes'] = $codeLengthBytes;
+        $this->getScheduler()->scheduleRepeatingTask(new RequestTickTask($this->container), 1);
+        $this->getScheduler()->scheduleRepeatingTask(new TwoFACleanupTask($this->container->get(TwoFactorAuthService::class)), 20);
+        $this->getScheduler()->scheduleRepeatingTask(new BindingCleanupTask($this->container->get(BindingService::class)), 20 * 60 * 60);
 
-        $bindingCodeTimeout = $this->getConfig()->get("binding_code_timeout_seconds", 300); // Default to 300 seconds
-        if (!is_int($bindingCodeTimeout) || $bindingCodeTimeout <= 0) {
-            $this->getLogger()->warning("Invalid 'binding_code_timeout_seconds' in config.yml. Using default value of 300.");
-            $bindingCodeTimeout = 300;
-        }
-        $databaseConfig['binding_code_timeout_seconds'] = $bindingCodeTimeout;
+        $this->getServer()->getPluginManager()->registerEvents($this->container->get(NotificationListener::class), $this);
+        $this->getServer()->getPluginManager()->registerEvents($this->container->get(XAuthListener::class), $this);
 
-        $this->dataProvider = DataProviderFactory::create($databaseConfig);
+        $this->registerXAuthStep();
+        $this->registerInGameCommands();
 
-        $token = $this->getConfig()->get("telegram_token");
-        if (!is_string($token)) {
-            $token = "YOUR_TELEGRAM_TOKEN";
-        }
-        if ($token === "YOUR_TELEGRAM_TOKEN" || $token === '') {
-            $this->getLogger()->error("Please set your Telegram token in config.yml");
-            $this->getServer()->getPluginManager()->disablePlugin($this);
-            return;
-        }
-
-        $this->bindingService = new BindingService($this->dataProvider);
-        $this->bot = new TelegramBot($token, $this->getConfig(), $this->languageManager, $this->bindingService);
-        if (!$this->bot->initialize()) {
-            $this->getLogger()->error("Failed to get bot info, disabling plugin.");
-            $this->getServer()->getPluginManager()->disablePlugin($this);
-            return;
-        }
-
-        $this->getServer()->getPluginManager()->registerEvents(new NotificationListener(), $this);
-        $this->getServer()->getPluginManager()->registerEvents(new XAuthListener($this), $this);
-        $this->getServer()->getPluginManager()->registerEvents(new FreezeListener($this), $this);
-
-        $this->startPolling();
+        $this->container->get(TelegramBot::class)->startPolling();
     }
 
-    public function startPolling(): void {
-        if ($this->bot === null) {
-            return;
-        }
-        $this->bot->getUpdates(function(array $updates) {
-            $this->processUpdates($updates);
-            // Schedule the next poll only after the current one has completed.
-            $this->getScheduler()->scheduleDelayedTask(new class($this) extends Task {
-                private Main $main;
-                public function __construct(Main $main) { $this->main = $main; }
-                public function onRun(): void { $this->main->startPolling(); }
-            }, 1);
+    private function registerServices(): void {
+        // Core Plugin & Server Objects
+        $this->container->set(Main::class, $this);
+        $this->container->set(\pocketmine\Server::class, $this->getServer());
+        $this->container->set(\pocketmine\utils\Config::class, $this->getConfig());
+
+        // Utility Services
+        $this->container->register(LanguageManager::class, function() {
+            $lang = $this->getConfig()->get('language', 'en');
+            $langFile = $this->getDataFolder() . "languages/" . $lang . ".yml";
+            if (!file_exists($langFile)) {
+                $this->getLogger()->warning("Language '" . $lang . "' not found, defaulting to English.");
+                $lang = 'en';
+                $langFile = $this->getDataFolder() . "languages/en.yml";
+            }
+            return new LanguageManager($lang, $langFile);
         });
+        $this->container->register(CodeGenerator::class, fn() => new CodeGenerator((int)$this->getConfig()->get('code-length-bytes', 3)));
+
+        // DataProvider Service
+        $this->container->register(DataProviderInterface::class, fn() => DataProviderFactory::create($this->getConfig()->get('database', []), $this->getDataFolder()));
+
+        // State and Offset Managers
+        $this->container->register(OffsetManager::class, fn(ServiceContainer $c) => new PersistentOffsetManager($c->get(DataProviderInterface::class)));
+        $this->container->register(UserStateManager::class, fn(ServiceContainer $c) => new PersistentUserStateManager($c->get(DataProviderInterface::class)));
+
+        // Core Services
+        $this->container->register(BindingService::class, fn(ServiceContainer $c) => new BindingService(
+            $c->get(DataProviderInterface::class),
+            $c->get(CodeGenerator::class),
+            $c->get(\pocketmine\utils\Config::class),
+            $c->get(Main::class)
+        ));
+        $this->container->register(TwoFactorAuthService::class, fn(ServiceContainer $c) => new TwoFactorAuthService(
+            $c->get(TelegramBot::class),
+            $c->get(LanguageManager::class),
+            $c->get(BindingService::class),
+            $c->get(\pocketmine\utils\Config::class),
+            $c->get(Main::class)
+        ));
+
+        // Keyboard & Command Handlers
+        $this->container->register(KeyboardFactory::class, fn(ServiceContainer $c) => new KeyboardFactory($c->get(LanguageManager::class)));
+        
+        $this->container->register(CommandHandler::class, function(ServiceContainer $c) {
+            $bot = $c->get(TelegramBot::class); // This will be the instance from the container
+            $keyboardFactory = $c->get(KeyboardFactory::class);
+            $commands = $this->createTelegramCommands($c);
+            return new CommandHandler($bot, $keyboardFactory, $commands);
+        });
+
+        // Telegram Bot and Handlers
+        $this->container->register(TelegramBot::class, function (ServiceContainer $c) {
+            $token = $this->getConfig()->get("telegram-token");
+            if (!is_string($token) || $token === 'YOUR_TELEGRAM_TOKEN' || $token === '') {
+                $this->getLogger()->error("Please set your Telegram token in config.yml");
+                $this->getServer()->getPluginManager()->disablePlugin($this);
+                throw new \RuntimeException("Telegram token not configured.");
+            }
+
+            // 1. Create bot without command handler
+            $bot = new TelegramBot(
+                $token, 
+                $this->getConfig(), 
+                $c->get(KeyboardFactory::class),
+                $c->get(OffsetManager::class),
+                $c->get(UserStateManager::class)
+            );
+
+            return $bot;
+        });
+
+        $this->container->register(CallbackQueryHandler::class, fn(ServiceContainer $c) => new CallbackQueryHandler($c));
+
+        // Listeners
+        $this->container->register(NotificationListener::class, fn(ServiceContainer $c) => new NotificationListener($c));
+        $this->container->register(XAuthListener::class, fn(ServiceContainer $c) => new XAuthListener($c));
+
+        // Set CommandHandler on TelegramBot after both are registered
+        $telegramBot = $this->container->get(TelegramBot::class);
+        $telegramBot->setCommandHandler($this->container->get(CommandHandler::class));
+        $telegramBot->setCallbackQueryHandler($this->container->get(CallbackQueryHandler::class));
+
+        if (!$telegramBot->initialize()) {
+            $this->getLogger()->error("Failed to get bot info, disabling plugin.");
+            $this->getServer()->getPluginManager()->disablePlugin($this);
+            throw new \RuntimeException("Failed to initialize Telegram bot.");
+        }
+    }
+
+    private function registerInGameCommands(): void {
+        $this->getServer()->getCommandMap()->register("bindingmanager", new ConfirmCommand($this->container));
+        $this->getServer()->getCommandMap()->register("bindingmanager", new TgCommand($this->container));
     }
 
     /**
-     * @param array<array<string, mixed>> $updates
+     * @return array<string, \newlandpe\BindingManager\Command\CommandInterface>
      */
-    public function processUpdates(array $updates): void {
-        if (count($updates) === 0) {
-            return;
-        }
-
-        foreach ($updates as $update) {
-            if (isset($update['update_id'])) {
-                $this->setOffset((int)($update['update_id'] + 1));
-                if ($this->bot !== null && $this->languageManager !== null && $this->dataProvider !== null) {
-                    $this->bot->processUpdate($update, $this->languageManager, $this->dataProvider);
-                }
-            }
-        }
+    private function createTelegramCommands(ServiceContainer $container): array {
+        // All commands now receive the container and fetch their own dependencies.
+        return [
+            'start' => new StartCommand($container),
+            'binding' => new BindingCommand($container),
+            'help' => new HelpCommand($container),
+            'myinfo' => new MyInfoCommand($container),
+            'unbind' => new UnbindCommand($container),
+            'adminplayerinfo' => new AdminPlayerInfoCommand($container),
+            'resetbinding' => new ResetBindingCommand($container),
+            '2fa' => new TwoFactorCommand($container),
+        ];
     }
 
-    public function getOffset(): int {
-        return $this->offset;
-    }
-
-    public function setOffset(int $offset): void {
-        $this->getLogger()->debug("Setting new offset: " . $offset);
-        $this->offset = $offset;
-    }
-
-    public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool {
-        if ($command->getName() === "confirm") {
-            if (!$sender instanceof Player) {
-                $langManager = $this->getLanguageManager();
-                if (!is_null($langManager)) {
-                    $sender->sendMessage($langManager->get("command-only-in-game"));
-                }
-                return true;
-            }
-            if (!isset($args[0]) || $args[0] === '') {
-                $sender->sendMessage("Usage: /confirm <code>");
-                return true;
-            }
-            $bindingService = $this->getBindingService();
-            $langManager = $this->getLanguageManager();
-            if (!is_null($bindingService) && !is_null($langManager)) {
-                if ($bindingService->confirmBinding($sender->getName(), $args[0])) {
-                    $sender->sendMessage($langManager->get("command-confirm-success"));
-                } else {
-                    $sender->sendMessage($langManager->get("command-confirm-fail"));
-                }
-            }
-            return true;
-        } elseif ($command->getName() === "tg") {
-            if (!$sender instanceof Player) {
-                $langManager = $this->getLanguageManager();
-                if (!is_null($langManager)) {
-                    $sender->sendMessage($langManager->get("command-only-in-game"));
-                }
-                return true;
-            }
-
-            if (!isset($args[0])) {
-                $langManager = $this->getLanguageManager();
-                if (!is_null($langManager)) {
-                    $sender->sendMessage($langManager->get("command-usage-tg"));
-                }
-                return true;
-            }
-
-            switch (strtolower($args[0])) {
-                case "help":
-                    $lang = $this->getLanguageManager();
-                    if($lang === null) return true;
-                    if($sender->hasPermission("bindingmanager.command.forceunbind")) {
-                        $sender->sendMessage($lang->get("command-tg-help-admin"));
-                    } else {
-                        $sender->sendMessage($lang->get("command-tg-help-player"));
-                    }
-                    return true;
-                case "unbind":
-                    if (!isset($args[1]) || strtolower($args[1]) !== "confirm") {
-                        $langManager = $this->getLanguageManager();
-                        if (!is_null($langManager)) {
-                            $sender->sendMessage($langManager->get("command-usage-tg-unbind"));
-                        }
-                        return true;
-                    }
-                    if (!isset($args[2]) || $args[2] === '') {
-                        $langManager = $this->getLanguageManager();
-                        if (!is_null($langManager)) {
-                            $sender->sendMessage($langManager->get("command-usage-tg-unbind"));
-                        }
-                        return true;
-                    }
-                    $code = $args[2];
-                    $bindingService = $this->getBindingService();
-                    $langManager = $this->getLanguageManager();
-                    if (!is_null($bindingService) && !is_null($langManager)) {
-                        if ($bindingService->confirmUnbinding($sender->getName(), $code)) {
-                            $sender->sendMessage($langManager->get("command-unbind-confirm-success"));
-                        } else {
-                            $sender->sendMessage($langManager->get("command-unbind-confirm-fail"));
-                        }
-                    }
-                    return true;
-                case "reset":
-                    $bindingService = $this->getBindingService();
-                    $langManager = $this->getLanguageManager();
-                    $bot = $this->getBot();
-
-                    if (is_null($bindingService) || is_null($langManager) || is_null($bot)) {
-                        return true;
-                    }
-
-                    $code = $bindingService->initiateInGameReset($sender->getName());
-
-                    if ($code === null) {
-                        $sender->sendMessage($langManager->get("command-ingame-reset-fail"));
-                        return true;
-                    }
-
-                    $telegramId = $dataProvider->getTelegramIdByPlayerName($sender->getName());
-                    if ($telegramId !== null) {
-                        $bot->sendMessage($telegramId, $langManager->get("telegram-ingame-reset-alert"));
-                    }
-
-                    $sender->sendMessage($langManager->get("command-ingame-reset-initiated", ["code" => $code]));
-                    $this->getLogger()->info("Player " . $sender->getName() . " has initiated an in-game account reset. Their code is " . $code);
-
-                    return true;
-                case "confirmreset":
-                    if (!$sender->hasPermission("bindingmanager.command.forceunbind")) {
-                        $langManager = $this->getLanguageManager();
-                        if (!is_null($langManager)) {
-                            $sender->sendMessage($langManager->get("command-no-permission"));
-                        }
-                        return true;
-                    }
-                    if (!isset($args[1]) || !isset($args[2])) {
-                        $langManager = $this->getLanguageManager();
-                        if (!is_null($langManager)) {
-                            $sender->sendMessage($langManager->get("command-usage-tg-confirmreset"));
-                        }
-                        return true;
-                    }
-                    $playerName = $args[1];
-                    $code = $args[2];
-                    $bindingService = $this->getBindingService();
-                    $langManager = $this->getLanguageManager();
-
-                    if (!is_null($bindingService) && !is_null($langManager)) {
-                        if ($bindingService->confirmInGameReset($playerName, $code)) {
-                            $sender->sendMessage($langManager->get("command-confirmreset-success", ["player_name" => $playerName]));
-                        } else {
-                            $sender->sendMessage($langManager->get("command-confirmreset-fail", ["player_name" => $playerName]));
-                        }
-                    }
-                    return true;
-                case "forceunbind":
-                    if (!$sender->hasPermission("bindingmanager.command.forceunbind")) {
-                        $langManager = $this->getLanguageManager();
-                        if (!is_null($langManager)) {
-                            $sender->sendMessage($langManager->get("command-no-permission"));
-                        }
-                        return true;
-                    }
-                    if (!isset($args[1]) || $args[1] === '') {
-                        $langManager = $this->getLanguageManager();
-                        if (!is_null($langManager)) {
-                            $sender->sendMessage($langManager->get("command-usage-tg-forceunbind"));
-                        }
-                        return true;
-                    }
-                    $playerName = $args[1];
-                    $bindingService = $this->getBindingService();
-                    $langManager = $this->getLanguageManager();
-                    if (!is_null($bindingService) && !is_null($langManager)) {
-                        $telegramId = $this->dataProvider->getTelegramIdByPlayerName($playerName);
-                        if (!is_null($telegramId)) {
-                            if ($bindingService->unbindByTelegramId($telegramId)) {
-                                $sender->sendMessage($langManager->get("command-forceunbind-success", ["player_name" => $playerName]));
-                            } else {
-                                $sender->sendMessage($langManager->get("command-forceunbind-fail", ["player_name" => $playerName]));
-                            }
-                        } else {
-                            $sender->sendMessage($langManager->get("command-forceunbind-player-not-bound", ["player_name" => $playerName]));
-                        }
-                    }
-                    return true;
-                default:
-                    $langManager = $this->getLanguageManager();
-                    if (!is_null($langManager)) {
-                        $sender->sendMessage($langManager->get("command-unknown-subcommand"));
-                    }
-                    return true;
-            }
-        }
-        return false;
-    }
-
-    public function onPlayerQuit(PlayerQuitEvent $event): void {
-        $player = $event->getPlayer();
-        $playerName = strtolower($player->getName());
-
-        $twoFactorAuthService = $this->getTwoFactorAuthService();
-        if ($twoFactorAuthService === null) {
-            return;
-        }
-
-        $request = $twoFactorAuthService->getRequest($playerName);
-        if ($request !== null) {
-            $bot = $this->getBot();
-            $lang = $this->getLanguageManager();
-            if ($bot !== null && $lang !== null) {
-                $bot->editMessageText(
-                    $request['chat_id'],
-                    $request['message_id'],
-                    $lang->get("2fa-login-not-completed", ["player_name" => $player->getName()])
-                );
-            }
-            $twoFactorAuthService->removeRequest($playerName);
-        }
-    }
-
-    public static function getInstance(): ?self {
-        return self::$instance;
-    }
-
-    public function getLanguageManager(): ?LanguageManager {
-        return $this->languageManager;
-    }
-
-    public function getDataProvider(): ?DataProviderInterface {
-        return $this->dataProvider;
-    }
-
-    public function getBot(): ?TelegramBot {
-        return $this->bot;
-    }
-
-    public function getTwoFactorAuthService(): ?TwoFactorAuthService {
-        return $this->twoFactorAuthService;
-    }
-
-    public function getUserState(int $userId): ?string {
-        return $this->userStates[$userId] ?? null;
-    }
-
-    public function setUserState(int $userId, ?string $state): void {
-        if ($state === null) {
-            unset($this->userStates[$userId]);
+    private function registerXAuthStep(): void {
+        $xAuthPlugin = $this->getServer()->getPluginManager()->getPlugin("XAuth");
+        if ($xAuthPlugin instanceof \Luthfi\XAuth\Main) {
+            $xAuthPlugin->registerAuthenticationStep(new BindingManager2FAStep($this));
         } else {
-            $this->userStates[$userId] = $state;
+            $this->getLogger()->warning("XAuth plugin not found. 2FA will not be integrated with XAuth's authentication flow.");
         }
+    }
+
+    public function getContainer(): ServiceContainer {
+        return $this->container;
     }
 }

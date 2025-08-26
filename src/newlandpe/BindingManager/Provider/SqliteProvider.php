@@ -1,287 +1,231 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Provider;
 
-use newlandpe\BindingManager\Event\AccountBoundEvent;
-use newlandpe\BindingManager\Event\AccountUnboundEvent;
-use newlandpe\BindingManager\Main;
-use newlandpe\BindingManager\Util\CodeGenerator;
-use pocketmine\Server;
 use SQLite3;
 
 class SqliteProvider implements DataProviderInterface {
 
     private SQLite3 $db;
-    private CodeGenerator $codeGenerator;
-    private int $bindingCodeTimeoutSeconds;
+    private string $bindingsTable;
+    private string $codesTable;
 
-    /**
-     * @param array<string, mixed> $config
-     * @param CodeGenerator $codeGenerator
-     */
-    public function __construct(array $config, CodeGenerator $codeGenerator) {
-        $main = Main::getInstance();
-        if ($main === null) {
-            throw new \RuntimeException('Main instance not available.');
-        }
-        $filePath = $main->getDataFolder() . ($config['file'] ?? 'bindings.sqlite');
+    public function __construct(array $config, ?string $dataFolder = null) {
+        $this->bindingsTable = $config['bindings-table'] ?? 'bindings';
+        $this->codesTable = $config['codes-table'] ?? 'temporary_codes';
+
+        $filePath = $dataFolder !== null ? $dataFolder . ($config['file'] ?? 'bindings.sqlite') : 'bindings.sqlite';
         $this->db = new SQLite3($filePath);
-        $this->codeGenerator = $codeGenerator;
-        $this->bindingCodeTimeoutSeconds = array_key_exists('binding_code_timeout_seconds', $config) && is_int($config['binding_code_timeout_seconds']) ? $config['binding_code_timeout_seconds'] : 300;
-        $this->db->exec("CREATE TABLE IF NOT EXISTS bindings (
-            telegram_id INTEGER PRIMARY KEY,
+        $this->db->exec("PRAGMA journal_mode = WAL;");
+        $this->db->exec("CREATE TABLE IF NOT EXISTS {$this->bindingsTable} (
+            telegram_id INTEGER NOT NULL,
             player_name TEXT NOT NULL,
-            confirmed INTEGER NOT NULL DEFAULT 0,
-            code TEXT,
-            timestamp INTEGER,
             notifications_enabled INTEGER NOT NULL DEFAULT 1,
-            unbind_code TEXT,
-            unbind_timestamp INTEGER,
-            ingame_reset_code TEXT,
-            ingame_reset_timestamp INTEGER,
-            two_factor_enabled INTEGER NOT NULL DEFAULT 0
+            two_factor_enabled INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (telegram_id, player_name)
         )");
+        $this->db->exec("CREATE TABLE IF NOT EXISTS {$this->codesTable} (
+            code TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            telegram_id INTEGER NOT NULL,
+            player_name TEXT NOT NULL,
+            expires_at INTEGER NOT NULL
+        )");
+        $this->db->exec("CREATE INDEX IF NOT EXISTS idx_temp_telegram_id ON {$this->codesTable} (telegram_id);");
+        $this->db->exec("CREATE INDEX IF NOT EXISTS idx_temp_player_name ON {$this->codesTable} (player_name);");
+        $this->db->exec("CREATE TABLE IF NOT EXISTS meta_data (key TEXT PRIMARY KEY, value TEXT);");
     }
 
-    public function getBindingStatus(int $telegramId): int {
-        $stmt = $this->db->prepare("SELECT confirmed, timestamp FROM bindings WHERE telegram_id = :id");
-        if ($stmt === false) return 0;
+    public function getBoundPlayerNames(int $telegramId): array {
+        $stmt = $this->db->prepare("SELECT player_name FROM {$this->bindingsTable} WHERE telegram_id = :id");
         $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
         $result = $stmt->execute();
-        if ($result === false) return 0;
-        $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        if (!is_array($fetch)) return 0;
-
-        if ((bool)($fetch['confirmed'] ?? false)) {
-            return 2; // Confirmed
+        $names = [];
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $names[] = $row['player_name'];
         }
-
-        // If pending, check if the code has expired
-        if (isset($fetch['timestamp'])) {
-            if (time() - (int)$fetch['timestamp'] > $this->bindingCodeTimeoutSeconds) {
-                // Code expired, remove the pending binding
-                $this->unbindByTelegramId($telegramId);
-                return 0; // Treat as not bound
-            }
-        }
-        return 1; // Pending
+        return $names;
     }
 
-    public function getBoundPlayerName(int $telegramId): ?string {
-        $stmt = $this->db->prepare("SELECT player_name FROM bindings WHERE telegram_id = :id");
-        if ($stmt === false) return null;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        if ($result === false) return null;
-        $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return is_array($fetch) ? ($fetch['player_name'] ?? null) : null;
-    }
-
-    public function initiateBinding(string $playerName, int $telegramId): ?string {
-        if ($this->getBindingStatus($telegramId) !== 0) {
-            return null; // Already bound or pending
-        }
-        if ($this->isPlayerNameBound($playerName)) {
-            return null; // Player name already taken
-        }
-
-        $code = $this->codeGenerator->generate();
-        $stmt = $this->db->prepare("INSERT OR REPLACE INTO bindings (telegram_id, player_name, code, timestamp) VALUES (:id, :name, :code, :time)");
-        if ($stmt === false) return null;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $stmt->bindValue(':name', strtolower($playerName), SQLITE3_TEXT);
-        $stmt->bindValue(':code', $code, SQLITE3_TEXT);
-        $stmt->bindValue(':time', time(), SQLITE3_INTEGER);
+    public function addPermanentBinding(int $telegramId, string $playerName): bool {
+        $stmt = $this->db->prepare("INSERT OR IGNORE INTO {$this->bindingsTable} (telegram_id, player_name) VALUES (:tid, :pname)");
+        $stmt->bindValue(':tid', $telegramId, SQLITE3_INTEGER);
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
         $stmt->execute();
-        return $code;
-    }
-
-    public function confirmBinding(string $playerName, string $code): bool {
-        $stmt = $this->db->prepare("SELECT telegram_id, timestamp FROM bindings WHERE player_name = :name AND code = :code AND confirmed = 0");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':name', $playerName, SQLITE3_TEXT);
-        $stmt->bindValue(':code', $code, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        if ($result === false) return false;
-        $data = $result->fetchArray(SQLITE3_ASSOC);
-
-        if (!is_array($data) || (time() - (int)($data['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
-            return false; // Not found or expired
-        }
-
-        $updateStmt = $this->db->prepare("UPDATE bindings SET confirmed = 1, code = NULL, timestamp = NULL WHERE player_name = :name");
-        if ($updateStmt === false) return false;
-        $updateStmt->bindValue(':name', $playerName, SQLITE3_TEXT);
-        $updateStmt->execute();
-        
         return $this->db->changes() > 0;
     }
 
-    public function unbindByTelegramId(int $telegramId): bool {
-        $stmt = $this->db->prepare("DELETE FROM bindings WHERE telegram_id = :id");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
+    public function removePermanentBinding(int $telegramId, string $playerName): bool {
+        $stmt = $this->db->prepare("DELETE FROM {$this->bindingsTable} WHERE telegram_id = :tid AND player_name = :pname");
+        $stmt->bindValue(':tid', $telegramId, SQLITE3_INTEGER);
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
         $stmt->execute();
-
         return $this->db->changes() > 0;
     }
 
     public function isPlayerNameBound(string $playerName): bool {
-        $stmt = $this->db->prepare("SELECT 1 FROM bindings WHERE player_name = :name AND confirmed = 1");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':name', strtolower($playerName), SQLITE3_TEXT);
+        $stmt = $this->db->prepare("SELECT 1 FROM {$this->bindingsTable} WHERE player_name = :pname LIMIT 1");
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
         $result = $stmt->execute();
-        if ($result === false) return false;
-        return is_array($result->fetchArray());
-    }
-
-    public function toggleNotifications(int $telegramId): bool {
-        $stmt = $this->db->prepare("UPDATE bindings SET notifications_enabled = 1 - notifications_enabled WHERE telegram_id = :id");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $stmt->execute();
-        return $this->areNotificationsEnabled($telegramId);
-    }
-
-    public function areNotificationsEnabled(int $telegramId): bool {
-        $stmt = $this->db->prepare("SELECT notifications_enabled FROM bindings WHERE telegram_id = :id");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        if ($result === false) return false;
-        $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return is_array($fetch) && (($fetch['notifications_enabled'] ?? 0) == 1);
+        return $result->fetchArray() !== false;
     }
 
     public function getTelegramIdByPlayerName(string $playerName): ?int {
-        $stmt = $this->db->prepare("SELECT telegram_id FROM bindings WHERE player_name = :name AND confirmed = 1");
-        if ($stmt === false) return null;
-        $stmt->bindValue(':name', strtolower($playerName), SQLITE3_TEXT);
+        $stmt = $this->db->prepare("SELECT telegram_id FROM {$this->bindingsTable} WHERE player_name = :pname");
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
         $result = $stmt->execute();
-        if ($result === false) return null;
-        $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return is_array($fetch) ? (int)($fetch['telegram_id'] ?? 0) : null;
+        $data = $result->fetchArray(SQLITE3_ASSOC);
+        return $data !== false ? (int)$data['telegram_id'] : null;
     }
 
-    public function initiateUnbinding(int $telegramId): ?string {
-        $stmt = $this->db->prepare("SELECT confirmed FROM bindings WHERE telegram_id = :id");
-        if ($stmt === false) return null;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $result = $stmt->execute();
-        if ($result === false) return null;
-        $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        if (!is_array($fetch) || !($fetch['confirmed'] ?? false)) {
-            return null; // Not bound, cannot initiate unbinding
-        }
-
-        $code = $this->codeGenerator->generate();
-        $updateStmt = $this->db->prepare("UPDATE bindings SET unbind_code = :code, unbind_timestamp = :time WHERE telegram_id = :id");
-        if ($updateStmt === false) return null;
-        $updateStmt->bindValue(':code', $code, SQLITE3_TEXT);
-        $updateStmt->bindValue(':time', time(), SQLITE3_INTEGER);
-        $updateStmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $updateStmt->execute();
-        return $code;
+    public function createTemporaryBinding(string $playerName, int $telegramId, string $code, int $expiresAt): bool {
+        $stmt = $this->db->prepare("INSERT INTO {$this->codesTable} (code, type, telegram_id, player_name, expires_at) VALUES (:code, 'bind', :tid, :pname, :exp)");
+        $stmt->bindValue(':code', $code, SQLITE3_TEXT);
+        $stmt->bindValue(':tid', $telegramId, SQLITE3_INTEGER);
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
+        $stmt->bindValue(':exp', $expiresAt, SQLITE3_INTEGER);
+        $stmt->execute();
+        return $this->db->changes() > 0;
     }
 
-    public function confirmUnbinding(string $playerName, string $code): bool {
-        $stmt = $this->db->prepare("SELECT telegram_id, unbind_timestamp FROM bindings WHERE player_name = :name AND unbind_code = :code AND confirmed = 1");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':name', $playerName, SQLITE3_TEXT);
+    public function findTemporaryBindingByCode(string $code): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM {$this->codesTable} WHERE code = :code AND type = 'bind'");
         $stmt->bindValue(':code', $code, SQLITE3_TEXT);
         $result = $stmt->execute();
-        if ($result === false) return false;
         $data = $result->fetchArray(SQLITE3_ASSOC);
-
-        if (!is_array($data) || (isset($data['unbind_timestamp']) && (time() - (int)$data['unbind_timestamp'] > $this->bindingCodeTimeoutSeconds))) {
-            // Code expired or not found, clear unbind request
-            $updateStmt = $this->db->prepare("UPDATE bindings SET unbind_code = NULL, unbind_timestamp = NULL WHERE player_name = :name");
-            if ($updateStmt === false) return false;
-            $updateStmt->bindValue(':name', $playerName, SQLITE3_TEXT);
-            $updateStmt->execute();
-            return false;
-        }
-
-        // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int)($data['telegram_id'] ?? 0));
+        return $data !== false ? $data : null;
     }
 
-    public function initiateReset(int $telegramId): ?string {
-        $stmt = $this->db->prepare("SELECT confirmed FROM bindings WHERE telegram_id = :id");
-        if ($stmt === false) return null;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
+    public function findTemporaryBindingByPlayerName(string $playerName): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM {$this->codesTable} WHERE player_name = :pname AND type = 'bind'");
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
         $result = $stmt->execute();
-        if ($result === false) return null;
-        $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        if (!is_array($fetch) || !($fetch['confirmed'] ?? false)) {
-            return null; // Not bound, cannot initiate reset
-        }
-
-        $code = $this->codeGenerator->generate();
-        $updateStmt = $this->db->prepare("UPDATE bindings SET reset_code = :code, reset_timestamp = :time WHERE telegram_id = :id");
-        if ($updateStmt === false) return null;
-        $updateStmt->bindValue(':code', $code, SQLITE3_TEXT);
-        $updateStmt->bindValue(':time', time(), SQLITE3_INTEGER);
-        $updateStmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $updateStmt->execute();
-        return $code;
+        $data = $result->fetchArray(SQLITE3_ASSOC);
+        return $data !== false ? $data : null;
     }
 
-    public function initiateInGameReset(string $playerName): ?string {
-        $telegramId = $this->getTelegramIdByPlayerName($playerName);
-        if ($telegramId === null) {
-            return null; // Not bound
-        }
-
-        $code = $this->codeGenerator->generate();
-        $updateStmt = $this->db->prepare("UPDATE bindings SET ingame_reset_code = :code, ingame_reset_timestamp = :time WHERE telegram_id = :id");
-        if ($updateStmt === false) return null;
-        $updateStmt->bindValue(':code', $code, SQLITE3_TEXT);
-        $updateStmt->bindValue(':time', time(), SQLITE3_INTEGER);
-        $updateStmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
-        $updateStmt->execute();
-        return $code;
+    public function deleteTemporaryBinding(string $code): void {
+        $stmt = $this->db->prepare("DELETE FROM {$this->codesTable} WHERE code = :code AND type = 'bind'");
+        $stmt->bindValue(':code', $code, SQLITE3_TEXT);
+        $stmt->execute();
     }
 
-    public function confirmInGameReset(string $playerName, string $code): bool {
-        $stmt = $this->db->prepare("SELECT telegram_id, ingame_reset_timestamp FROM bindings WHERE player_name = :name AND ingame_reset_code = :code AND confirmed = 1");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':name', $playerName, SQLITE3_TEXT);
+    public function createTemporaryUnbindCode(int $telegramId, string $playerName, string $code, int $expiresAt): bool {
+        $stmt = $this->db->prepare("INSERT INTO {$this->codesTable} (code, type, telegram_id, player_name, expires_at) VALUES (:code, 'unbind', :tid, :pname, :exp)");
+        $stmt->bindValue(':code', $code, SQLITE3_TEXT);
+        $stmt->bindValue(':tid', $telegramId, SQLITE3_INTEGER);
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
+        $stmt->bindValue(':exp', $expiresAt, SQLITE3_INTEGER);
+        $stmt->execute();
+        return $this->db->changes() > 0;
+    }
+
+    public function findTemporaryUnbindCode(string $code): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM {$this->codesTable} WHERE code = :code AND type = 'unbind'");
         $stmt->bindValue(':code', $code, SQLITE3_TEXT);
         $result = $stmt->execute();
-        if ($result === false) return false;
         $data = $result->fetchArray(SQLITE3_ASSOC);
-
-        if (!is_array($data) || (isset($data['ingame_reset_timestamp']) && (time() - (int)$data['ingame_reset_timestamp'] > $this->bindingCodeTimeoutSeconds))) {
-            // Code expired or not found, clear reset request
-            $updateStmt = $this->db->prepare("UPDATE bindings SET ingame_reset_code = NULL, ingame_reset_timestamp = NULL WHERE player_name = :name");
-            if ($updateStmt === false) return false;
-            $updateStmt->bindValue(':name', $playerName, SQLITE3_TEXT);
-            $updateStmt->execute();
-            return false;
-        }
-
-        // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int)($data['telegram_id'] ?? 0));
+        return $data !== false ? $data : null;
     }
 
-    public function isTwoFactorEnabled(int $telegramId): bool {
-        $stmt = $this->db->prepare("SELECT two_factor_enabled FROM bindings WHERE telegram_id = :id");
-        if ($stmt === false) return false;
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
+    public function deleteTemporaryUnbindCode(string $code): void {
+        $stmt = $this->db->prepare("DELETE FROM {$this->codesTable} WHERE code = :code AND type = 'unbind'");
+        $stmt->bindValue(':code', $code, SQLITE3_TEXT);
+        $stmt->execute();
+    }
+
+    public function toggleNotifications(string $playerName): bool {
+        $stmt = $this->db->prepare("UPDATE {$this->bindingsTable} SET notifications_enabled = 1 - notifications_enabled WHERE player_name = :pname");
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
+        $stmt->execute();
+        return $this->areNotificationsEnabled($playerName);
+    }
+
+    public function areNotificationsEnabled(string $playerName): bool {
+        $stmt = $this->db->prepare("SELECT notifications_enabled FROM {$this->bindingsTable} WHERE player_name = :pname");
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
         $result = $stmt->execute();
-        if ($result === false) return false;
-        $fetch = $result->fetchArray(SQLITE3_ASSOC);
-        return is_array($fetch) && (($fetch['two_factor_enabled'] ?? 0) == 1);
+        $data = $result->fetchArray(SQLITE3_ASSOC);
+        return $data !== false ? (bool)$data['notifications_enabled'] : true; // Default to true if not found
     }
 
-    public function setTwoFactor(int $telegramId, bool $enabled): void {
-        $stmt = $this->db->prepare("UPDATE bindings SET two_factor_enabled = :enabled WHERE telegram_id = :id");
-        if ($stmt === false) return;
+    public function isTwoFactorEnabled(string $playerName): bool {
+        $stmt = $this->db->prepare("SELECT two_factor_enabled FROM {$this->bindingsTable} WHERE player_name = :pname");
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $data = $result->fetchArray(SQLITE3_ASSOC);
+        return $data !== false ? (bool)$data['two_factor_enabled'] : false; // Default to false
+    }
+
+    public function setTwoFactor(string $playerName, bool $enabled): void {
+        $stmt = $this->db->prepare("UPDATE {$this->bindingsTable} SET two_factor_enabled = :enabled WHERE player_name = :pname");
         $stmt->bindValue(':enabled', $enabled ? 1 : 0, SQLITE3_INTEGER);
-        $stmt->bindValue(':id', $telegramId, SQLITE3_INTEGER);
+        $stmt->bindValue(':pname', strtolower($playerName), SQLITE3_TEXT);
+        $stmt->execute();
+    }
+
+    public function getTelegramOffset(): int {
+        $stmt = $this->db->prepare("SELECT value FROM meta_data WHERE key = 'telegram_offset'");
+        $result = $stmt->execute();
+        $data = $result->fetchArray(SQLITE3_ASSOC);
+        return $data !== false ? (int)$data['value'] : 0;
+    }
+
+    public function setTelegramOffset(int $offset): void {
+        $stmt = $this->db->prepare("INSERT OR REPLACE INTO meta_data (key, value) VALUES ('telegram_offset', :offset)");
+        $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+        $stmt->execute();
+    }
+
+    public function getUserState(int $userId): ?string {
+        $stmt = $this->db->prepare("SELECT value FROM meta_data WHERE key = :key");
+        $stmt->bindValue(':key', 'user_state_' . $userId, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $data = $result->fetchArray(SQLITE3_ASSOC);
+        return $data !== false ? $data['value'] : null;
+    }
+
+    public function setUserState(int $userId, ?string $state): void {
+        if ($state === null) {
+            $stmt = $this->db->prepare("DELETE FROM meta_data WHERE key = :key");
+            $stmt->bindValue(':key', 'user_state_' . $userId, SQLITE3_TEXT);
+            $stmt->execute();
+        } else {
+            $stmt = $this->db->prepare("INSERT OR REPLACE INTO meta_data (key, value) VALUES (:key, :value)");
+            $stmt->bindValue(':key', 'user_state_' . $userId, SQLITE3_TEXT);
+            $stmt->bindValue(':value', $state, SQLITE3_TEXT);
+            $stmt->execute();
+        }
+    }
+
+    public function deleteExpiredTemporaryBindings(): void {
+        $stmt = $this->db->prepare("DELETE FROM {$this->codesTable} WHERE expires_at < :time");
+        $stmt->bindValue(':time', time(), SQLITE3_INTEGER);
         $stmt->execute();
     }
 }

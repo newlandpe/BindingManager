@@ -1,293 +1,211 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Provider;
 
 use InvalidArgumentException;
-use newlandpe\BindingManager\Event\AccountBoundEvent;
-use newlandpe\BindingManager\Event\AccountUnboundEvent;
-use newlandpe\BindingManager\Util\CodeGenerator;
 use PDO;
 use PDOException;
-use pocketmine\Server;
 
 class MysqlProvider implements DataProviderInterface {
 
     private PDO $pdo;
-    private string $table;
-    private CodeGenerator $codeGenerator;
-    private int $bindingCodeTimeoutSeconds;
+    private string $bindingsTable;
+    private string $codesTable;
 
-    /**
-     * @param array<string, mixed> $config
-     * @param CodeGenerator $codeGenerator
-     */
-    public function __construct(array $config, CodeGenerator $codeGenerator) {
-        if (!isset($config['host'], $config['user'], $config['password'], $config['database'], $config['table'])) {
-            throw new InvalidArgumentException("Missing MySQL configuration parameters (host, user, password, database, table).");
+    public function __construct(array $config, ?string $dataFolder = null) {
+        if (!isset($config['host'], $config['user'], $config['password'], $config['database'])) {
+            throw new InvalidArgumentException("Missing MySQL configuration parameters.");
         }
 
-        $host = $config['host'];
-        if (!is_string($host)) {
-            throw new InvalidArgumentException("Invalid host type.");
-        }
-        $user = $config['user'];
-        if (!is_string($user)) {
-            throw new InvalidArgumentException("Invalid user type.");
-        }
-        $password = $config['password'];
-        if (!is_string($password)) {
-            throw new InvalidArgumentException("Invalid password type.");
-        }
-        $database = $config['database'];
-        if (!is_string($database)) {
-            throw new InvalidArgumentException("Invalid database type.");
-        }
-        $table = $config['table'];
-        if (!is_string($table)) {
-            throw new InvalidArgumentException("Invalid table type.");
-        }
-        $port = isset($config['port']) && is_numeric($config['port']) ? (int)$config['port'] : 3306;
-        $this->table = $table;
-        $this->codeGenerator = $codeGenerator;
-        $this->bindingCodeTimeoutSeconds = array_key_exists('binding_code_timeout_seconds', $config) && is_int($config['binding_code_timeout_seconds']) ? $config['binding_code_timeout_seconds'] : 300;
+        $this->bindingsTable = $config['bindings-table'] ?? 'bindings';
+        $this->codesTable = $config['codes-table'] ?? 'temporary_codes';
 
+        $dsn = "mysql:host={$config['host']};port={$config['port'] ?? 3306};dbname={$config['database']};charset=utf8mb4";
         try {
-            $this->pdo = new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4", $user, $password);
+            $this->pdo = new PDO($dsn, $config['user'], $config['password']);
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $this->createTable();
+            $this->createTables();
         } catch (PDOException $e) {
             throw new PDOException("Failed to connect to MySQL: " . $e->getMessage());
         }
     }
 
-    private function createTable(): void {
-        $sql = "CREATE TABLE IF NOT EXISTS `{$this->table}` (
-            `telegram_id` BIGINT NOT NULL PRIMARY KEY,
-            `player_name` VARCHAR(255) NOT NULL UNIQUE,
-            `confirmed` BOOLEAN NOT NULL DEFAULT FALSE,
-            `code` VARCHAR(12) NULL,
-            `timestamp` INT NULL,
+    private function createTables(): void {
+        $this->pdo->exec("CREATE TABLE IF NOT EXISTS `{$this->bindingsTable}` (
+            `telegram_id` BIGINT NOT NULL,
+            `player_name` VARCHAR(255) NOT NULL,
             `notifications_enabled` BOOLEAN NOT NULL DEFAULT TRUE,
-            `unbind_code` VARCHAR(12) NULL,
-            `unbind_timestamp` INT NULL,
-            `ingame_reset_code` VARCHAR(12) NULL,
-            `ingame_reset_timestamp` INT NULL,
-            `two_factor_enabled` BOOLEAN NOT NULL DEFAULT FALSE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        $this->pdo->exec($sql);
+            `two_factor_enabled` BOOLEAN NOT NULL DEFAULT FALSE,
+            PRIMARY KEY (`telegram_id`, `player_name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        $this->pdo->exec("CREATE TABLE IF NOT EXISTS `{$this->codesTable}` (
+            `code` VARCHAR(255) PRIMARY KEY,
+            `type` VARCHAR(16) NOT NULL,
+            `telegram_id` BIGINT NOT NULL,
+            `player_name` VARCHAR(255) NOT NULL,
+            `expires_at` INT UNSIGNED NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        $this->pdo->exec("CREATE TABLE IF NOT EXISTS `meta_data` (
+            `key` VARCHAR(255) PRIMARY KEY,
+            `value` TEXT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     }
 
-    public function getBindingStatus(int $telegramId): int {
-        $stmt = $this->pdo->prepare("SELECT confirmed, timestamp FROM `{$this->table}` WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!is_array($result)) {
-            return 0; // Not bound
-        }
-
-        if ((bool)($result['confirmed'] ?? false)) {
-            return 2; // Confirmed
-        }
-
-        // If pending, check if the code has expired
-        if (isset($result['timestamp'])) {
-            if (time() - (int)$result['timestamp'] > $this->bindingCodeTimeoutSeconds) {
-                // Code expired, remove the pending binding
-                $this->unbindByTelegramId($telegramId);
-                return 0; // Treat as not bound
-            }
-        }
-        return 1; // Pending
+    public function getBoundPlayerNames(int $telegramId): array {
+        $stmt = $this->pdo->prepare("SELECT player_name FROM {$this->bindingsTable} WHERE telegram_id = ?");
+        $stmt->execute([$telegramId]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    public function getBoundPlayerName(int $telegramId): ?string {
-        $stmt = $this->pdo->prepare("SELECT player_name FROM `{$this->table}` WHERE telegram_id = :telegram_id AND confirmed = 1");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($result === false || !is_array($result)) return null;
-        return (isset($result['player_name']) && is_string($result['player_name'])) ? $result['player_name'] : null;
+    public function addPermanentBinding(int $telegramId, string $playerName): bool {
+        $stmt = $this->pdo->prepare("INSERT IGNORE INTO {$this->bindingsTable} (telegram_id, player_name) VALUES (?, ?)");
+        $stmt->execute([$telegramId, strtolower($playerName)]);
+        return $stmt->rowCount() > 0;
     }
 
-    public function initiateBinding(string $playerName, int $telegramId): ?string {
-        if ($this->getBindingStatus($telegramId) !== 0) {
-            return null; // Already bound or pending
-        }
-        if ($this->isPlayerNameBound($playerName)) {
-            return null; // Player name already taken
-        }
-
-        $code = $this->codeGenerator->generate();
-        $stmt = $this->pdo->prepare("INSERT INTO `{$this->table}` (player_name, telegram_id, code, timestamp) VALUES (:player_name, :telegram_id, :code, :timestamp) ON DUPLICATE KEY UPDATE code = :code, timestamp = :timestamp, confirmed = 0");
-        $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->bindParam(":code", $code, PDO::PARAM_STR);
-        $stmt->bindValue(":timestamp", time(), PDO::PARAM_INT);
-        $stmt->execute();
-        return $code;
-    }
-
-    public function confirmBinding(string $playerName, string $code): bool {
-        $stmt = $this->pdo->prepare("SELECT telegram_id, timestamp FROM `{$this->table}` WHERE player_name = :player_name AND code = :code AND confirmed = 0");
-        $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-        $stmt->bindParam(":code", $code, PDO::PARAM_STR);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!is_array($result) || (time() - (int)($result['timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
-            return false; // Not found or expired
-        }
-
-        $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET confirmed = 1, code = NULL, timestamp = NULL WHERE player_name = :player_name");
-        $updateStmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-        $updateStmt->execute();
-
-        return $updateStmt->rowCount() > 0;
-    }
-
-    public function unbindByTelegramId(int $telegramId): bool {
-        $stmt = $this->pdo->prepare("DELETE FROM `{$this->table}` WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
-
+    public function removePermanentBinding(int $telegramId, string $playerName): bool {
+        $stmt = $this->pdo->prepare("DELETE FROM {$this->bindingsTable} WHERE telegram_id = ? AND player_name = ?");
+        $stmt->execute([$telegramId, strtolower($playerName)]);
         return $stmt->rowCount() > 0;
     }
 
     public function isPlayerNameBound(string $playerName): bool {
-        $stmt = $this->pdo->prepare("SELECT 1 FROM `{$this->table}` WHERE player_name = :player_name AND confirmed = 1");
-        $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-        $stmt->execute();
-        return $stmt->fetchColumn() !== false && $stmt->fetchColumn() !== null;
-    }
-
-    public function toggleNotifications(int $telegramId): bool {
-        $stmt = $this->pdo->prepare("UPDATE `{$this->table}` SET notifications_enabled = NOT notifications_enabled WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->rowCount() > 0;
-    }
-
-    public function areNotificationsEnabled(int $telegramId): bool {
-        $stmt = $this->pdo->prepare("SELECT notifications_enabled FROM `{$this->table}` WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return is_array($result) && (bool)($result['notifications_enabled'] ?? false);
+        $stmt = $this->pdo->prepare("SELECT 1 FROM {$this->bindingsTable} WHERE player_name = ? LIMIT 1");
+        $stmt->execute([strtolower($playerName)]);
+        return $stmt->fetchColumn() !== false;
     }
 
     public function getTelegramIdByPlayerName(string $playerName): ?int {
-        $stmt = $this->pdo->prepare("SELECT telegram_id FROM `{$this->table}` WHERE player_name = :player_name AND confirmed = 1");
-        $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-        $stmt->execute();
+        $stmt = $this->pdo->prepare("SELECT telegram_id FROM {$this->bindingsTable} WHERE player_name = ?");
+        $stmt->execute([strtolower($playerName)]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return is_array($result) && (isset($result['telegram_id']) && is_numeric($result['telegram_id'])) ? (int)$result['telegram_id'] : null;
+        return $result !== false ? (int)$result['telegram_id'] : null;
     }
 
-    public function initiateUnbinding(int $telegramId): ?string {
-        $stmt = $this->pdo->prepare("SELECT confirmed FROM `{$this->table}` WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
+    public function createTemporaryBinding(string $playerName, int $telegramId, string $code, int $expiresAt): bool {
+        $stmt = $this->pdo->prepare("INSERT INTO {$this->codesTable} (code, type, telegram_id, player_name, expires_at) VALUES (?, 'bind', ?, ?, ?)");
+        $stmt->execute([$code, $telegramId, strtolower($playerName), $expiresAt]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function findTemporaryBindingByCode(string $code): ?array {
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->codesTable} WHERE code = ? AND type = 'bind'");
+        $stmt->execute([$code]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result !== false ? $result : null;
+    }
+
+    public function findTemporaryBindingByPlayerName(string $playerName): ?array {
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->codesTable} WHERE player_name = ? AND type = 'bind'");
+        $stmt->execute([strtolower($playerName)]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result !== false ? $result : null;
+    }
+
+    public function deleteTemporaryBinding(string $code): void {
+        $stmt = $this->pdo->prepare("DELETE FROM {$this->codesTable} WHERE code = ? AND type = 'bind'");
+        $stmt->execute([$code]);
+    }
+
+    public function createTemporaryUnbindCode(int $telegramId, string $playerName, string $code, int $expiresAt): bool {
+        $stmt = $this->pdo->prepare("INSERT INTO {$this->codesTable} (code, type, telegram_id, player_name, expires_at) VALUES (?, 'unbind', ?, ?, ?)");
+        $stmt->execute([$code, $telegramId, strtolower($playerName), $expiresAt]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function findTemporaryUnbindCode(string $code): ?array {
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->codesTable} WHERE code = ? AND type = 'unbind'");
+        $stmt->execute([$code]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result !== false ? $result : null;
+    }
+
+    public function deleteTemporaryUnbindCode(string $code): void {
+        $stmt = $this->pdo->prepare("DELETE FROM {$this->codesTable} WHERE code = ? AND type = 'unbind'");
+        $stmt->execute([$code]);
+    }
+
+    public function toggleNotifications(string $playerName): bool {
+        $stmt = $this->pdo->prepare("UPDATE {$this->bindingsTable} SET notifications_enabled = NOT notifications_enabled WHERE player_name = ?");
+        $stmt->execute([strtolower($playerName)]);
+        return $this->areNotificationsEnabled($playerName);
+    }
+
+    public function areNotificationsEnabled(string $playerName): bool {
+        $stmt = $this->pdo->prepare("SELECT notifications_enabled FROM {$this->bindingsTable} WHERE player_name = ?");
+        $stmt->execute([strtolower($playerName)]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result !== false ? (bool)$result['notifications_enabled'] : true;
+    }
+
+    public function isTwoFactorEnabled(string $playerName): bool {
+        $stmt = $this->pdo->prepare("SELECT two_factor_enabled FROM {$this->bindingsTable} WHERE player_name = ?");
+        $stmt->execute([strtolower($playerName)]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result !== false ? (bool)$result['two_factor_enabled'] : false;
+    }
+
+    public function setTwoFactor(string $playerName, bool $enabled): void {
+        $stmt = $this->pdo->prepare("UPDATE {$this->bindingsTable} SET two_factor_enabled = ? WHERE player_name = ?");
+        $stmt->execute([$enabled, strtolower($playerName)]);
+    }
+
+    public function getTelegramOffset(): int {
+        $stmt = $this->pdo->prepare("SELECT value FROM meta_data WHERE `key` = 'telegram_offset'");
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($result) || !($result['confirmed'] ?? false)) {
-            return null; // Not bound, cannot initiate unbinding
+        return $result !== false ? (int)$result['value'] : 0;
+    }
+
+    public function setTelegramOffset(int $offset): void {
+        $stmt = $this->pdo->prepare("INSERT INTO meta_data (`key`, `value`) VALUES ('telegram_offset', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)");
+        $stmt->execute([$offset]);
+    }
+
+    public function getUserState(int $userId): ?string {
+        $stmt = $this->pdo->prepare("SELECT value FROM meta_data WHERE `key` = ?");
+        $stmt->execute(['user_state_' . $userId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result !== false ? $result['value'] : null;
+    }
+
+    public function setUserState(int $userId, ?string $state): void {
+        if ($state === null) {
+            $stmt = $this->pdo->prepare("DELETE FROM meta_data WHERE `key` = ?");
+            $stmt->execute(['user_state_' . $userId]);
+        } else {
+            $stmt = $this->pdo->prepare("INSERT INTO meta_data (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)");
+            $stmt->execute(['user_state_' . $userId, $state]);
         }
-
-        $code = $this->codeGenerator->generate();
-        $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET unbind_code = :code, unbind_timestamp = :time WHERE telegram_id = :telegram_id");
-        $updateStmt->bindParam(":code", $code, PDO::PARAM_STR);
-        $updateStmt->bindValue(":time", time(), PDO::PARAM_INT);
-        $updateStmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $updateStmt->execute();
-        return $code;
     }
 
-    public function confirmUnbinding(string $playerName, string $code): bool {
-        $stmt = $this->pdo->prepare("SELECT telegram_id, unbind_timestamp FROM `{$this->table}` WHERE player_name = :player_name AND unbind_code = :code AND confirmed = 1");
-        $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-        $stmt->bindParam(":code", $code, PDO::PARAM_STR);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!is_array($result) || (time() - (int)($result['unbind_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
-            // Code expired or not found, clear unbind request
-            $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET unbind_code = NULL, unbind_timestamp = NULL WHERE player_name = :player_name");
-            $updateStmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-            $updateStmt->execute();
-            return false;
-        }
-
-        // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int)($result['telegram_id'] ?? 0));
-    }
-
-    public function initiateReset(int $telegramId): ?string {
-        $stmt = $this->pdo->prepare("SELECT confirmed FROM `{$this->table}` WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($result) || !($result['confirmed'] ?? false)) {
-            return null; // Not bound, cannot initiate reset
-        }
-
-        $code = $this->codeGenerator->generate();
-        $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET reset_code = :code, reset_timestamp = :time WHERE telegram_id = :telegram_id");
-        $updateStmt->bindParam(":code", $code, PDO::PARAM_STR);
-        $updateStmt->bindValue(":time", time(), PDO::PARAM_INT);
-        $updateStmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $updateStmt->execute();
-        return $code;
-    }
-
-    public function initiateInGameReset(string $playerName): ?string {
-        $telegramId = $this->getTelegramIdByPlayerName($playerName);
-        if ($telegramId === null) {
-            return null; // Not bound
-        }
-
-        $code = $this->codeGenerator->generate();
-        $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET ingame_reset_code = :code, ingame_reset_timestamp = :time WHERE telegram_id = :telegram_id");
-        $updateStmt->bindParam(":code", $code, PDO::PARAM_STR);
-        $updateStmt->bindValue(":time", time(), PDO::PARAM_INT);
-        $updateStmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $updateStmt->execute();
-        return $code;
-    }
-
-    public function confirmInGameReset(string $playerName, string $code): bool {
-        $stmt = $this->pdo->prepare("SELECT telegram_id, ingame_reset_timestamp FROM `{$this->table}` WHERE player_name = :player_name AND ingame_reset_code = :code AND confirmed = 1");
-        $stmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-        $stmt->bindParam(":code", $code, PDO::PARAM_STR);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!is_array($result) || (time() - (int)($result['ingame_reset_timestamp'] ?? 0) > $this->bindingCodeTimeoutSeconds)) {
-            // Code expired or not found, clear reset request
-            $updateStmt = $this->pdo->prepare("UPDATE `{$this->table}` SET ingame_reset_code = NULL, ingame_reset_timestamp = NULL WHERE player_name = :player_name");
-            $updateStmt->bindParam(":player_name", $playerName, PDO::PARAM_STR);
-            $updateStmt->execute();
-            return false;
-        }
-
-        // Code is valid, perform unbinding
-        return $this->unbindByTelegramId((int)($result['telegram_id'] ?? 0));
-    }
-
-    public function isTwoFactorEnabled(int $telegramId): bool {
-        $stmt = $this->pdo->prepare("SELECT two_factor_enabled FROM `{$this->table}` WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return is_array($result) && (bool)($result['two_factor_enabled'] ?? false);
-    }
-
-    public function setTwoFactor(int $telegramId, bool $enabled): void {
-        $stmt = $this->pdo->prepare("UPDATE `{$this->table}` SET two_factor_enabled = :enabled WHERE telegram_id = :telegram_id");
-        $stmt->bindParam(":enabled", $enabled, PDO::PARAM_BOOL);
-        $stmt->bindParam(":telegram_id", $telegramId, PDO::PARAM_INT);
-        $stmt->execute();
+    public function deleteExpiredTemporaryBindings(): void {
+        $stmt = $this->pdo->prepare("DELETE FROM {$this->codesTable} WHERE expires_at < ?");
+        $stmt->execute([time()]);
     }
 }

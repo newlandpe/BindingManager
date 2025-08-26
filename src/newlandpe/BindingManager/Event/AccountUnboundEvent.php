@@ -1,5 +1,28 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Event;
@@ -10,17 +33,19 @@ use pocketmine\player\IPlayer;
 
 class AccountUnboundEvent extends PluginEvent {
 
+    public const CAUSE_USER_REQUEST = 0;
+    public const CAUSE_XAUTH_UNREGISTER = 1;
+    public const CAUSE_ADMIN_FORCE = 2;
+
     private IPlayer $player;
     private int $telegramId;
+    private int $cause;
 
-    public function __construct(IPlayer $player, int $telegramId) {
-        $main = Main::getInstance();
-        if ($main === null) {
-            throw new \RuntimeException('Main instance not available.');
-        }
-        parent::__construct($main);
+    public function __construct(Main $plugin, IPlayer $player, int $telegramId, int $cause = self::CAUSE_USER_REQUEST) {
+        parent::__construct($plugin);
         $this->player = $player;
         $this->telegramId = $telegramId;
+        $this->cause = $cause;
     }
 
     public function getPlayer(): IPlayer {
@@ -29,5 +54,9 @@ class AccountUnboundEvent extends PluginEvent {
 
     public function getTelegramId(): int {
         return $this->telegramId;
+    }
+
+    public function getCause(): int {
+        return $this->cause;
     }
 }

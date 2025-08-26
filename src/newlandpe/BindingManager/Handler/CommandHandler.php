@@ -1,19 +1,34 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Handler;
 
-use newlandpe\BindingManager\Command\AdminPlayerInfoCommand;
-use newlandpe\BindingManager\Command\BindingCommand;
 use newlandpe\BindingManager\Command\CommandContext;
 use newlandpe\BindingManager\Command\CommandInterface;
-use newlandpe\BindingManager\Command\HelpCommand;
-use newlandpe\BindingManager\Command\MyInfoCommand;
-use newlandpe\BindingManager\Command\ResetBindingCommand;
-use newlandpe\BindingManager\Command\StartCommand;
-use newlandpe\BindingManager\Command\TwoFactorCommand;
-use newlandpe\BindingManager\Command\UnbindCommand;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
@@ -29,21 +44,12 @@ class CommandHandler {
     /**
      * @param TelegramBot $bot
      * @param KeyboardFactory $keyboardFactory
+     * @param array<string, CommandInterface> $commands
      */
-    public function __construct(TelegramBot $bot, KeyboardFactory $keyboardFactory, BindingService $bindingService) {
+    public function __construct(TelegramBot $bot, KeyboardFactory $keyboardFactory, array $commands) {
         $this->bot = $bot;
         $this->keyboardFactory = $keyboardFactory;
-
-        $this->commands = [
-            'start' => new StartCommand($bot),
-            'help' => new HelpCommand($bot),
-            'binding' => new BindingCommand($bot, $bindingService),
-            'myinfo' => new MyInfoCommand($bot),
-            'unbind' => new UnbindCommand($bot, $bindingService),
-            'admininfo' => new AdminPlayerInfoCommand($bot),
-            'reset' => new ResetBindingCommand($bot, $bindingService),
-            '2fa' => new TwoFactorCommand($bot),
-        ];
+        $this->commands = $commands;
     }
 
     /**
@@ -106,7 +112,7 @@ class CommandHandler {
 
         $command = $this->commands[$commandName] ?? null;
         if ($command !== null) {
-            $context = new CommandContext($this->bot, $lang, $dataProvider, $this->keyboardFactory, $message, $args);
+            $context = new CommandContext($message, $args);
             $command->execute($context);
         } elseif ($targetBot === null) {
             $this->bot->sendMessage($chatId, $lang->get("telegram-unknown-command"));

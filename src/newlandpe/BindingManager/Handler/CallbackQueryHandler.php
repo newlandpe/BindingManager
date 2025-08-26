@@ -1,245 +1,249 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Handler;
 
-use Luthfi\XAuth\Main as XAuthMain;
 use newlandpe\BindingManager\Command\CommandContext;
 use newlandpe\BindingManager\Factory\KeyboardFactory;
-use newlandpe\BindingManager\Handler\CommandHandler;
 use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Main;
-use newlandpe\BindingManager\Provider\DataProviderInterface;
+use newlandpe\BindingManager\Service\BindingService;
+use newlandpe\BindingManager\Service\TwoFactorAuthService;
+use newlandpe\BindingManager\Service\UserStateManager;
 use newlandpe\BindingManager\Telegram\TelegramBot;
-use newlandpe\BindingManager\Service\TwoFAManager;
+use newlandpe\BindingManager\Util\ServiceContainer;
 use pocketmine\Server;
+use pocketmine\plugin\PluginManager;
 
 class CallbackQueryHandler {
 
-    private TelegramBot $bot;
-    private KeyboardFactory $keyboardFactory;
+    private ServiceContainer $container;
 
-    public function __construct(TelegramBot $bot, KeyboardFactory $keyboardFactory) {
-        $this->bot = $bot;
-        $this->keyboardFactory = $keyboardFactory;
+    public function __construct(ServiceContainer $container) {
+        $this->container = $container;
     }
 
     /**
      * @param array<string, mixed> $callbackQuery
-     * @param LanguageManager $lang
-     * @param DataProviderInterface $dataProvider
      */
-    public function handle(array $callbackQuery, LanguageManager $lang, DataProviderInterface $dataProvider): void {
+    public function handle(array $callbackQuery): void {
         $message = $callbackQuery['message'] ?? null;
-        /** @var array<string, mixed>|null $message */
-        if ($message === null) {
-            return; // No message associated with the callback
-        }
+        if ($message === null) return;
+
+        $bot = $this->container->get(TelegramBot::class);
+        $lang = $this->container->get(LanguageManager::class);
 
         // --- SECURITY: Ensure callbacks are only handled in private chats ---
-        if (!isset($message['chat']) || !is_array($message['chat']) || ($message['chat']['type'] ?? 'private') !== 'private') {
-            $callbackQueryId = $callbackQuery['id'] ?? null;
-            if ($callbackQueryId !== null) {
-                $this->bot->request('answerCallbackQuery', [
-                    'callback_query_id' => $callbackQueryId,
-                    'text' => $lang->get("telegram-command-private-only"),
-                    'show_alert' => true
-                ]);
-            }
+        if (($message['chat']['type'] ?? 'private') !== 'private') {
+            $bot->request('answerCallbackQuery', ['callback_query_id' => $callbackQuery['id'], 'text' => $lang->get("telegram-command-private-only"), 'show_alert' => true]);
             return;
         }
         // --- END SECURITY ---
 
-        if (!isset($message['from']) || !is_array($message['from']) || ($message['from']['id'] ?? null) !== $this->bot->getId()) {
-            return; // Not for us
-        }
+        $fromId = (int)($callbackQuery['from']['id'] ?? 0);
+        if ($fromId === 0) return; // Invalid sender ID
 
         $data = $callbackQuery['data'] ?? null;
-        if (!is_string($data)) {
-            return; // No data or invalid data type
-        }
+        if (!is_string($data)) return;
 
         $explodedData = explode(':', $data);
-        if (count($explodedData) < 2) {
-            return; // Invalid data format
-        }
-
         $menu = $explodedData[0] ?? '';
         $action = $explodedData[1] ?? '';
+        $playerName = $explodedData[2] ?? ''; // Used for account-specific actions
 
-        // Acknowledge the callback query only if we understand the data format
-        $callbackQueryId = $callbackQuery['id'] ?? null;
-        if ($callbackQueryId !== null) {
-            $this->bot->request('answerCallbackQuery', ['callback_query_id' => $callbackQueryId]);
-        }
+        $bot->request('answerCallbackQuery', ['callback_query_id' => $callbackQuery['id']]);
 
-        $context = new CallbackQueryContext($this->bot, $lang, $dataProvider, $this->keyboardFactory, $callbackQuery);
+        $context = new CommandContext(
+            $callbackQuery['message'],
+            [], // args are set later using setArgs
+            $callbackQuery
+        );
 
         switch ($menu) {
             case 'menu':
-                $this->handleMainMenu($context, $action);
+                $this->handleMainMenu($context, $action, $fromId);
                 break;
             case 'binding':
-                $this->handleBindingMenu($context, $action);
+                $this->handleBindingMenu($context, $action, $fromId);
                 break;
-            case 'unbind':
-                $this->handleUnbindMenu($context, $action);
+            case 'account':
+                $this->handleAccountMenu($context, $action, $fromId, $playerName);
                 break;
-            case '2fa':
-                $playerName = $explodedData[2] ?? '';
+            case '2fa': // This case is for 2FA login confirmation, not toggling
                 $this->handle2FAMenu($context, $action, $playerName);
                 break;
-            // No default case: we simply ignore unknown menus
         }
     }
 
-    private function handleMainMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = 0;
-        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
-            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
-        }
-
-        $fromId = 0;
-        if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
-            $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
-        }
-        $lang = $context->lang;
-        $dataProvider = $context->dataProvider;
-        $bot = $context->bot;
-        $keyboardFactory = $context->keyboardFactory;
+    private function handleMainMenu(CommandContext $context, string $action, int $fromId): void {
+        $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+        $bot = $this->container->get(TelegramBot::class);
+        $lang = $this->container->get(LanguageManager::class);
+        $keyboardFactory = $this->container->get(KeyboardFactory::class);
+        $bindingService = $this->container->get(BindingService::class);
 
         switch ($action) {
-            case 'bind':
-                $commandHandler = $bot->getCommandHandler();
-                $command = $commandHandler->findCommand('binding');
-                if ($command !== null) {
-                    $commandContext = new CommandContext($bot, $lang, $dataProvider, $keyboardFactory, ['chat' => ['id' => $chatId], 'from' => ['id' => $fromId]], [], $context->callbackQuery);
-                    $command->execute($commandContext);
-                }
-                break;
             case 'help':
                 $bot->sendMessage($chatId, $lang->get('telegram-help'));
                 break;
+            case 'start': // Handle /start command from Telegram
+                // Redirect to binding menu to show accounts, which is now menu:binding
+                $this->handleMainMenu($context, 'binding', $fromId);
+                break;
+            case 'initial':
+                $keyboard = $keyboardFactory->createInitialMenu();
+                $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-menu-message'), $keyboard);
+                break;
+            case 'binding': // This action is used to display the main binding menu (list of accounts)
+                $playerNames = $bindingService->getBoundPlayerNames($fromId);
+                $keyboard = $keyboardFactory->createAccountListMenu($playerNames);
+                if (empty($playerNames)) {
+                    $bot->editMessageText($chatId, $messageId, $lang->get('telegram-no-accounts-bound'), $keyboard);
+                } else {
+                    $bot->editMessageText($chatId, $messageId, $lang->get('telegram-select-account'), $keyboard);
+                }
+                break;
         }
     }
 
-    /**
-     * @param CallbackQueryContext $context
-     */
-    private function handleBindingMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = 0;
-        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
-            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
-        }
-
-        $fromId = 0;
-        if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
-            $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
-        }
-        $lang = $context->lang;
-        $dataProvider = $context->dataProvider;
-        $bot = $context->bot;
-        $keyboardFactory = $context->keyboardFactory;
+    private function handleBindingMenu(CommandContext $context, string $action, int $fromId): void {
+        $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+        $bot = $this->container->get(TelegramBot::class);
+        $lang = $this->container->get(LanguageManager::class);
 
         switch ($action) {
             case 'bind':
-                $main = Main::getInstance();
-                if ($main !== null) {
-                    $main->setUserState($fromId, 'awaiting_nickname');
-                    $bot->sendMessage($chatId, $lang->get('telegram-enter-nickname'));
-                }
-                break;
-            case 'myinfo':
-                $commandHandler = $bot->getCommandHandler();
-                $command = $commandHandler->findCommand('myinfo');
-                if ($command !== null) {
-                    $message = (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) ? $context->callbackQuery['message'] : [];
-                    $commandContext = new CommandContext($bot, $lang, $dataProvider, $keyboardFactory, $message, [], $context->callbackQuery);
-                    $command->execute($commandContext);
-                }
-                break;
-            case 'unbind':
-                $commandHandler = $bot->getCommandHandler();
-                $command = $commandHandler->findCommand('unbind');
-                if ($command !== null) {
-                    $message = (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) ? $context->callbackQuery['message'] : [];
-                    $commandContext = new CommandContext($bot, $lang, $dataProvider, $keyboardFactory, $message, [], $context->callbackQuery);
-                    $command->execute($commandContext);
-                }
-                break;
-            case 'notifications':
-                $isEnabled = $this->bindingService->toggleNotifications($fromId);
-                $status = $isEnabled ? 'enabled' : 'disabled';
-                $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}"));
+                $this->container->get(UserStateManager::class)->setUserState($fromId, 'awaiting_nickname');
+                $bot->sendMessage($chatId, $lang->get('telegram-enter-nickname'));
                 break;
             case 'cancel':
-                $messageId = 0;
-                if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
-                    $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+                $this->container->get(UserStateManager::class)->setUserState($fromId, null); // Reset state
+                $data = $context->callbackQuery['data'] ?? null;
+                $explodedData = explode(':', $data);
+                $code = $explodedData[2] ?? null; // Extract the code from callback data
+                if ($code !== null) {
+                    $this->container->get(BindingService::class)->deleteTemporaryBinding($code); // Delete the specific temporary binding
                 }
-
                 if ($messageId !== 0) {
-                    $main = Main::getInstance();
-                    if ($main !== null) {
-                        $main->setUserState($fromId, null); // Reset state
-                        $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));
-                    }
+                    $bot->editMessageText($chatId, $messageId, $lang->get('telegram-binding-cancelled'));
+                } else {
+                    $bot->sendMessage($chatId, $lang->get('telegram-binding-cancelled'));
                 }
                 break;
         }
     }
 
-    /**
-     * @param CallbackQueryContext $context
-     */
-    private function handleUnbindMenu(CallbackQueryContext $context, string $action): void {
-        $chatId = 0;
-        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
-            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
-        }
-
-        $fromId = 0;
-        if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
-            $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
-        }
-        $lang = $context->lang;
-        $bot = $context->bot;
-        $keyboardFactory = $context->keyboardFactory;
+    private function handleUnbindMenu(CommandContext $context, string $action, int $fromId): void {
+        $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+        $bot = $this->container->get(TelegramBot::class);
+        $lang = $this->container->get(LanguageManager::class);
 
         switch ($action) {
             case 'cancel':
-                $messageId = 0;
-                if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
-                    $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
-                }
-
+                $this->container->get(UserStateManager::class)->setUserState($fromId, null); // Reset state
                 if ($messageId !== 0) {
-                    $main = Main::getInstance();
-                    if ($main !== null) {
-                        $main->setUserState($fromId, null); // Reset state
-                        $bot->editMessageText($chatId, $messageId, $lang->get('telegram-unbind-cancelled'));
-                    }
+                    $bot->editMessageText($chatId, $messageId, $lang->get('telegram-unbind-cancelled'));
+                } else {
+                    $bot->sendMessage($chatId, $lang->get('telegram-unbind-cancelled'));
                 }
                 break;
         }
     }
 
-    private function handle2FAMenu(CallbackQueryContext $context, string $action, string $playerName): void {
-        $player = Server::getInstance()->getPlayerExact($playerName);
-        if ($player === null) {
+    private function handleAccountMenu(CommandContext $context, string $action, int $fromId, string $playerName): void {
+        $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
+        $bot = $this->container->get(TelegramBot::class);
+        $lang = $this->container->get(LanguageManager::class);
+        $keyboardFactory = $this->container->get(KeyboardFactory::class);
+        $bindingService = $this->container->get(BindingService::class);
+        $twoFactorAuthService = $this->container->get(TwoFactorAuthService::class);
+
+        // Ensure the player name belongs to the current Telegram user
+        $boundPlayerNames = $bindingService->getBoundPlayerNames($fromId);
+        if (!in_array($playerName, $boundPlayerNames, true)) {
+            $bot->sendMessage($chatId, $lang->get('telegram-account-not-found'));
             return;
         }
 
-        $main = Main::getInstance();
-        if ($main === null) {
-            return;
+        switch ($action) {
+            case 'select':
+                $notificationsEnabled = $bindingService->areNotificationsEnabled($playerName);
+                $twoFaEnabled = $twoFactorAuthService->get2FAStatus($playerName);
+                $keyboard = $keyboardFactory->createAccountManagementMenu($playerName, $notificationsEnabled, $twoFaEnabled);
+                $bot->editMessageText($chatId, $messageId, $lang->get('telegram-manage-account', ['player' => $playerName]), $keyboard);
+                break;
+            case 'info':
+                $command = $bot->getCommandHandler()->findCommand('myinfo');
+                if ($command !== null) {
+                    $context->setArgs([$playerName]); // Set player name as argument
+                    $command->execute($context);
+                }
+                break;
+            case 'notifications':
+                $isEnabled = $bindingService->toggleNotifications($playerName);
+                $status = $isEnabled ? 'enabled' : 'disabled';
+                $bot->sendMessage($chatId, $lang->get("telegram-notifications-status-changed-{$status}", ['player' => $playerName]));
+                // Re-display account management menu with updated status
+                $notificationsEnabled = $bindingService->areNotificationsEnabled($playerName);
+                $twoFaEnabled = $twoFactorAuthService->get2FAStatus($playerName);
+                $keyboard = $keyboardFactory->createAccountManagementMenu($playerName, $notificationsEnabled, $twoFaEnabled);
+                $bot->editMessageReplyMarkup($chatId, $messageId, $keyboard);
+                break;
+            case '2fa':
+                $isEnabled = $twoFactorAuthService->toggle2FA($playerName);
+                $status = $isEnabled ? 'enabled' : 'disabled';
+                $bot->sendMessage($chatId, $lang->get("2fa-status-{$status}", ['player' => $playerName]));
+                // Re-display account management menu with updated status
+                $notificationsEnabled = $bindingService->areNotificationsEnabled($playerName);
+                $twoFaEnabled = $twoFactorAuthService->get2FAStatus($playerName);
+                $keyboard = $keyboardFactory->createAccountManagementMenu($playerName, $notificationsEnabled, $twoFaEnabled);
+                $bot->editMessageReplyMarkup($chatId, $messageId, $keyboard);
+                break;
+            case 'unbind':
+                $command = $bot->getCommandHandler()->findCommand('unbind');
+                if ($command !== null) {
+                    $context->setArgs([$playerName]); // Set player name as argument
+                    $command->execute($context);
+                }
+                break;
         }
+    }
 
-        $twoFactorAuthService = $main->getTwoFactorAuthService();
-        if ($twoFactorAuthService === null) {
-            return;
-        }
+    private function handle2FAMenu(CommandContext $context, string $action, string $playerName): void {
+        $player = $this->container->get(Server::class)->getPlayerExact($playerName);
+        if ($player === null) return;
+
+        $twoFactorAuthService = $this->container->get(TwoFactorAuthService::class);
+        $lang = $this->container->get(LanguageManager::class);
+        $bot = $this->container->get(TelegramBot::class);
 
         $explodedData = explode(':', $context->callbackQuery['data']);
         $code = $explodedData[3] ?? '';
@@ -247,11 +251,10 @@ class CallbackQueryHandler {
         $request = $twoFactorAuthService->getRequest($playerName);
 
         if ($request === null || $request['code'] !== $code) {
-            // Invalid or expired request, or code mismatch
             $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
             $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
             if ($chatId !== 0 && $messageId !== 0) {
-                $this->bot->editMessageText($chatId, $messageId, $main->getLanguageManager()->get("2fa-login-invalid-code"));
+                $bot->editMessageText($chatId, $messageId, $lang->get("2fa-login-invalid-code"));
             }
             return;
         }
@@ -259,27 +262,20 @@ class CallbackQueryHandler {
         $twoFactorAuthService->removeRequest($playerName);
 
         if ($action === 'confirm') {
-            $twoFactorAuthService->unfreezePlayer($player);
-            $player->sendMessage($main->getLanguageManager()->get("2fa-login-confirmed"));
-            $xauth = Server::getInstance()->getPluginManager()->getPlugin('XAuth');
-            if ($xauth instanceof XAuthMain) {
-                $xauth->forceLogin($player);
+            $player->sendMessage($lang->get("2fa-login-confirmed"));
+            $xauth = $this->container->get(PluginManager::class)->getPlugin('XAuth');
+            if ($xauth instanceof \Luthfi\XAuth\Main) {
+                $xauth->getAuthenticationFlowManager()->completeStep($player, "binding_manager_2fa");
             }
         } elseif ($action === 'deny') {
-            $player->kick($main->getLanguageManager()->get("2fa-login-denied"));
+            $player->kick($lang->get("2fa-login-denied"));
         }
 
-        $chatId = 0;
-        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message']) && isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
-            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
-        }
-        $messageId = 0;
-        if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
-            $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
-        }
+        $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+        $messageId = (int)($context->callbackQuery['message']['message_id'] ?? 0);
 
         if ($chatId !== 0 && $messageId !== 0) {
-            $this->bot->editMessageText($chatId, $messageId, $main->getLanguageManager()->get("2fa-selection-made"));
+            $bot->editMessageText($chatId, $messageId, $lang->get("2fa-selection-made"));
         }
     }
 }

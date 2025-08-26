@@ -1,53 +1,59 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Provider;
 
 use InvalidArgumentException;
-use newlandpe\BindingManager\Util\CodeGenerator;
 
 class DataProviderFactory {
 
     /**
      * @param array<string, mixed> $config
      */
-    public static function create(array $config): DataProviderInterface {
-        $provider = strtolower(array_key_exists('provider', $config) && is_string($config['provider']) ? $config['provider'] : '');
-        $codeLengthBytes = array_key_exists('code_length_bytes', $config) && is_int($config['code_length_bytes']) ? $config['code_length_bytes'] : 3;
-        if ($codeLengthBytes < 1) {
-            $codeLengthBytes = 1; // Ensure it's at least 1
-        }
-        $codeGenerator = new CodeGenerator($codeLengthBytes);
+    public static function create(array $config, string $dataFolder): DataProviderInterface {
+        $providerType = strtolower($config['provider'] ?? 'sqlite');
 
-        $timeout = $config['binding_code_timeout_seconds'] ?? 300;
-
-        $providers = [
-            'json'   => JsonProvider::class,
-            'sqlite' => SqliteProvider::class,
-            'mysql'  => MysqlProvider::class,
-            'yaml'   => YamlProvider::class,
-        ];
-
-        if (!isset($providers[$provider])) {
-            throw new InvalidArgumentException("Invalid data provider: $provider");
+        switch ($providerType) {
+            case 'sqlite':
+                $providerClass = SqliteProvider::class;
+                $providerConfig = $config['sqlite'] ?? [];
+                break;
+            case 'mysql':
+                $providerClass = MysqlProvider::class;
+                $providerConfig = $config['mysql'] ?? [];
+                break;
+            default:
+                throw new InvalidArgumentException("Invalid data provider specified: '$providerType'. Only 'sqlite' and 'mysql' are supported.");
         }
 
-        $providerClass = $providers[$provider];
-
-        if (!class_exists($providerClass)) {
-            throw new InvalidArgumentException("Provider class '$providerClass' does not exist");
+        if (!is_array($providerConfig)) {
+            throw new InvalidArgumentException("Configuration for provider '$providerType' must be an array");
         }
 
-        $subConfig = $config[$provider] ?? [];
-        if (!is_array($subConfig)) {
-            throw new InvalidArgumentException("Configuration for provider '$provider' must be an array");
-        }
-
-        $finalConfig = array_merge($subConfig, [
-            'binding_code_timeout_seconds' => $timeout
-        ]);
-
-        return new $providerClass($finalConfig, $codeGenerator);
+        return new $providerClass($providerConfig, $dataFolder);
     }
 }

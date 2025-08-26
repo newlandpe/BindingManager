@@ -25,20 +25,23 @@
 
 declare(strict_types=1);
 
-namespace newlandpe\BindingManager\Task;
+namespace newlandpe\BindingManager\Service;
 
-use newlandpe\BindingManager\Service\TwoFactorAuthService;
-use pocketmine\scheduler\Task;
+use newlandpe\BindingManager\Provider\DataProviderInterface;
 
-class TwoFACleanupTask extends Task {
+class PersistentUserStateManager implements UserStateManager {
 
-    private TwoFactorAuthService $twoFactorAuthService;
+    private DataProviderInterface $dataProvider;
 
-    public function __construct(TwoFactorAuthService $twoFactorAuthService) {
-        $this->twoFactorAuthService = $twoFactorAuthService;
+    public function __construct(DataProviderInterface $dataProvider) {
+        $this->dataProvider = $dataProvider;
     }
 
-    public function onRun(): void {
-        $this->twoFactorAuthService->cleanupExpiredRequests();
+    public function getUserState(int $userId): ?string {
+        return $this->dataProvider->getUserState($userId);
+    }
+
+    public function setUserState(int $userId, ?string $state): void {
+        $this->dataProvider->setUserState($userId, $state);
     }
 }

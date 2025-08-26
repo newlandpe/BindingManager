@@ -25,20 +25,11 @@
 
 declare(strict_types=1);
 
-namespace newlandpe\BindingManager\Task;
+namespace newlandpe\BindingManager\Service;
 
-use newlandpe\BindingManager\Service\TwoFactorAuthService;
-use pocketmine\scheduler\Task;
+interface OffsetManager {
 
-class TwoFACleanupTask extends Task {
+    public function getOffset(): int;
 
-    private TwoFactorAuthService $twoFactorAuthService;
-
-    public function __construct(TwoFactorAuthService $twoFactorAuthService) {
-        $this->twoFactorAuthService = $twoFactorAuthService;
-    }
-
-    public function onRun(): void {
-        $this->twoFactorAuthService->cleanupExpiredRequests();
-    }
+    public function setOffset(int $offset): void;
 }

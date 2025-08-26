@@ -1,60 +1,89 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Command;
 
-use newlandpe\BindingManager\Main;
+use newlandpe\BindingManager\LanguageManager;
+use newlandpe\BindingManager\Service\BindingService;
 use newlandpe\BindingManager\Telegram\TelegramBot;
+use newlandpe\BindingManager\Util\ServiceContainer;
 
 class TwoFactorCommand implements CommandInterface {
 
+    private BindingService $bindingService;
+    private LanguageManager $lang;
     private TelegramBot $bot;
 
-    public function __construct(TelegramBot $bot) {
-        $this->bot = $bot;
+    public function __construct(ServiceContainer $container) {
+        $this->bindingService = $container->get(BindingService::class);
+        $this->lang = $container->get(LanguageManager::class);
+        $this->bot = $container->get(TelegramBot::class);
     }
 
     public function execute(CommandContext $context): bool {
-        $chatId = 0;
-        if (isset($context->message['chat']) && is_array($context->message['chat'])) {
-            $chatId = (int)($context->message['chat']['id'] ?? 0);
-        }
-
-        $fromId = 0;
-        if (isset($context->message['from']) && is_array($context->message['from'])) {
-            $fromId = (int)($context->message['from']['id'] ?? 0);
-        }
+        $chatId = (int)($context->message['chat']['id'] ?? 0);
+        $fromId = (int)($context->message['from']['id'] ?? 0);
         $args = $context->args;
-        $lang = $context->lang;
-        $dataProvider = $context->dataProvider;
 
         if ($chatId === 0 || $fromId === 0) {
             return true;
         }
 
-        if ($dataProvider->getBindingStatus($fromId) !== 2) {
-            $this->bot->sendMessage($chatId, $lang->get("2fa-not-bound"));
+        $subCommand = strtolower($args[0] ?? '');
+        $playerName = $args[1] ?? null;
+
+        if ($playerName === null) {
+            $this->bot->sendMessage($chatId, $this->lang->get("2fa-usage"));
             return true;
         }
 
-        $subCommand = strtolower($args[0] ?? '');
+        // Verify that the player is actually bound to this telegram account
+        $boundNames = $this->bindingService->getBoundPlayerNames($fromId);
+        if (!in_array(strtolower($playerName), array_map('strtolower', $boundNames), true)) {
+            $this->bot->sendMessage($chatId, $this->lang->get("2fa-not-your-account", ["player_name" => $playerName]));
+            return true;
+        }
 
         switch ($subCommand) {
             case 'enable':
-                $dataProvider->setTwoFactor($fromId, true);
-                $this->bot->sendMessage($chatId, $lang->get("2fa-enabled"));
+                $this->bindingService->setTwoFactor($playerName, true);
+                $this->bot->sendMessage($chatId, $this->lang->get("2fa-enabled", ["player_name" => $playerName]));
                 break;
             case 'disable':
-                $dataProvider->setTwoFactor($fromId, false);
-                $this->bot->sendMessage($chatId, $lang->get("2fa-disabled"));
+                $this->bindingService->setTwoFactor($playerName, false);
+                $this->bot->sendMessage($chatId, $this->lang->get("2fa-disabled", ["player_name" => $playerName]));
                 break;
             case 'status':
-                $status = $dataProvider->isTwoFactorEnabled($fromId) ? "enabled" : "disabled";
-                $this->bot->sendMessage($chatId, $lang->get("2fa-status-" . $status));
+                $status = $this->bindingService->isTwoFactorEnabled($playerName) ? "enabled" : "disabled";
+                $message = $this->lang->get("2fa-status-" . $status, ["player_name" => $playerName]);
+                $this->bot->sendMessage($chatId, $message);
                 break;
             default:
-                $this->bot->sendMessage($chatId, $lang->get("2fa-usage"));
+                $this->bot->sendMessage($chatId, $this->lang->get("2fa-usage"));
                 break;
         }
 

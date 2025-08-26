@@ -10,13 +10,98 @@ A PocketMine-MP plugin to bind player accounts to Telegram for authentication, n
 - **Localization:** Multi-language support. English and Ukrainian are included by default.
 - **Extensible API:** Provides an event-based system for other plugins to add custom data to player information displays.
 
+## Configuration
+
+Setting up BindingManager requires a few steps:
+
+1. **Get a Telegram Bot Token:**
+   - Talk to [@BotFather](https://t.me/BotFather) on Telegram.
+   - Create a new bot by sending the `/newbot` command.
+   - BotFather will give you a unique token. Copy this token.
+
+2. **Edit `config.yml`:**
+   - Open the `plugin_data/BindingManager/config.yml` file.
+   - Paste your bot token into the `telegram-token` field.
+
+3. **Add Your Admin ID:**
+   - You need to add your personal Telegram User ID to the `admins:` list in the config. This gives you administrative rights within the bot.
+   - **To get your Telegram User ID:**
+     1. Open the Telegram app.
+     2. Find and start a chat with the bot: [@my_id_bot](https://t.me/my_id_bot).
+     3. The bot will immediately reply with your numeric User ID.
+     4. Copy this ID and add it to the `admins:` list in `config.yml`.
+
+### Two-Factor Authentication (2FA) Configuration
+
+BindingManager integrates with XAuth's authentication flow to provide 2FA. The behavior of when 2FA is triggered (e.g., always, or only after password login) is controlled by the order of authentication steps in **XAuth's `config.yml`**.
+
+In addition to configuring XAuth's authentication flow, you must also set the `two-factor-mode` in **BindingManager's `config.yml`** to control when 2FA is initiated.
+
+- **`two-factor-mode: 'always'`**: 2FA will be triggered for every login attempt, regardless of whether it's a manual login or auto-login. This corresponds to placing `binding_manager_2fa` at the beginning of XAuth's `authentication-flow-order`.
+- **`two-factor-mode: 'after_password'`**: 2FA will only be triggered after a successful password login (or auto-login). This corresponds to placing `binding_manager_2fa` after `xauth_login` (and optionally `auto_login`) in XAuth's `authentication-flow-order`. This mode ensures that players first authenticate with their password before being prompted for 2FA.
+
+Example of `BindingManager`'s `config.yml` for "after_password" mode:
+```yaml
+# ... other configurations ...
+two-factor-mode: 'after_password'
+```
+
+To configure 2FA behavior:
+
+1. **Locate XAuth's `config.yml`:** This file is typically found in `plugin_data/XAuth/config.yml`.
+2. **Find the `authentication-flow-order` section:** This section defines the sequence of authentication steps.
+3. **Adjust the order of `binding_manager_2fa`:**
+   - **"Always" trigger 2FA (before password login/auto-login):**
+     Place `binding_manager_2fa` at the beginning of the `authentication-flow-order` list.
+     Example:
+     ```yaml
+     authentication-flow-order:
+       - "binding_manager_2fa"
+       - "auto_login"
+       - "xauth_login"
+       - "xauth_register"
+     ```
+   - **Trigger 2FA "after password" login (or auto-login):**
+     Place `binding_manager_2fa` after `xauth_login` (and optionally `auto_login`) in the `authentication-flow-order` list.
+     Example:
+     ```yaml
+     authentication-flow-order:
+       - "auto_login"
+       - "xauth_login"
+       - "binding_manager_2fa"
+       - "xauth_register"
+     ```
+     *Note: If a player is authenticated via `auto_login`, the `xauth_login` step is skipped, and `binding_manager_2fa` will be triggered immediately after `auto_login` completes.*
+
+## How to Use (For Players)
+
+1. **Start a chat with the bot:** Open your Telegram and start a conversation with the bot you just configured.
+1. **Get your binding code:** In the bot's chat, use the `/start` command. The bot will give you a unique code.
+1. **Bind your account in-game:** Log in to the Minecraft server and use the command `/confirm <code>`, replacing `<code>` with the code you received from the bot.
+
 ## Commands
 
-Here are the commands available in BindingManager:
+BindingManager registers the following commands for use in-game:
 
-- `/confirm <code>`: Confirms your Telegram account binding with the provided code.
-- `/tg <subcommand>`: Manages your Telegram bindings.
+- `/confirm <code>`: Confirms a player's Telegram account binding with the code they received from the bot.
+- `/tg <subcommand>`: Allows players to manage their Telegram bindings.
   - `/tg unbind confirm <code>`: Initiates and confirms the unbinding process.
+
+### Telegram Bot Commands
+
+For direct interaction with accounts via Telegram, the bot understands these commands:
+
+**For Players:**
+- `/start`: Initiates interaction with the bot, often used to begin the account binding process.
+- `/binding <nickname>`: Allows a player to bind their in-game account to the Telegram chat.
+- `/myinfo <nickname>`: Displays information about a player's bound account.
+- `/unbind <nickname>`: Initiates the unbinding process for a specific player account.
+- `/2fa <enable|disable|status> <nickname>`: Manages two-factor authentication settings for a player's account.
+- `/help`: Provides a list of available bot commands.
+
+**For Admins:**
+- `/adminplayerinfo <nickname>`: Looks up the binding status and information for a specific player.
+- `/resetbinding <nickname>`: Forcibly removes the Telegram binding from a player's account.
 
 ## API for Developers
 
@@ -43,7 +128,7 @@ To add your own data to the `/myinfo` command, you need to listen for the `Playe
 Open `resources/languages/en.yml` and add your placeholder to the templates:
 
 ```yaml
-telegram-myinfo-online: |
+telegram-myinfo-online: |-
   Nickname: {nickname}
   Status: Online
   Health: {health}

@@ -27,18 +27,18 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Task;
 
-use newlandpe\BindingManager\Service\TwoFactorAuthService;
+use newlandpe\BindingManager\Service\BindingService;
 use pocketmine\scheduler\Task;
 
-class TwoFACleanupTask extends Task {
+class BindingCleanupTask extends Task {
 
-    private TwoFactorAuthService $twoFactorAuthService;
+    private BindingService $bindingService;
 
-    public function __construct(TwoFactorAuthService $twoFactorAuthService) {
-        $this->twoFactorAuthService = $twoFactorAuthService;
+    public function __construct(BindingService $bindingService) {
+        $this->bindingService = $bindingService;
     }
 
     public function onRun(): void {
-        $this->twoFactorAuthService->cleanupExpiredRequests();
+        $this->bindingService->cleanupExpiredBindings();
     }
 }

@@ -1,102 +1,127 @@
 <?php
 
+/*
+ *
+ *  ____  _           _ _             __  __
+ * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
+ * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
+ * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the CSSM Unlimited License v2.0.
+ *
+ * This license permits unlimited use, modification, and distribution
+ * for any purpose while maintaining authorship attribution.
+ *
+ * The software is provided "as is" without warranty of any kind.
+ *
+ * @author Sergiy Chernega
+ * @link https://chernega.eu.org/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Command;
 
 use newlandpe\BindingManager\Event\PlayerDataInfoEvent;
-use newlandpe\BindingManager\Factory\KeyboardFactory;
 use newlandpe\BindingManager\LanguageManager;
-use newlandpe\BindingManager\Provider\DataProviderInterface;
+use newlandpe\BindingManager\Main;
+use newlandpe\BindingManager\Service\BindingService;
 use newlandpe\BindingManager\Telegram\TelegramBot;
+use newlandpe\BindingManager\Util\ServiceContainer;
 use pocketmine\player\Player;
 use pocketmine\Server;
 
 class MyInfoCommand implements CommandInterface {
 
+    private BindingService $bindingService;
+    private Main $plugin;
+    private Server $server;
+    private LanguageManager $lang;
     private TelegramBot $bot;
 
-    public function __construct(TelegramBot $bot) {
-        $this->bot = $bot;
+    public function __construct(ServiceContainer $container) {
+        $this->bindingService = $container->get(BindingService::class);
+        $this->plugin = $container->get(Main::class);
+        $this->server = $container->get(Server::class);
+        $this->lang = $container->get(LanguageManager::class);
+        $this->bot = $container->get(TelegramBot::class);
     }
 
     public function execute(CommandContext $context): bool {
         $chatId = 0;
         $fromId = 0;
+        $isTelegramContext = false;
 
         if ($context->callbackQuery !== null) {
-            if (isset($context->callbackQuery['message']) && is_array($context->callbackQuery['message'])) {
-                if (isset($context->callbackQuery['message']['chat']) && is_array($context->callbackQuery['message']['chat'])) {
-                    $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
-                }
-            }
-            if (isset($context->callbackQuery['from']) && is_array($context->callbackQuery['from'])) {
-                $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
-            }
+            $isTelegramContext = true;
+            $chatId = (int)($context->callbackQuery['message']['chat']['id'] ?? 0);
+            $fromId = (int)($context->callbackQuery['from']['id'] ?? 0);
         } elseif (isset($context->message)) {
-            if (isset($context->message['chat']) && is_array($context->message['chat'])) {
-                $chatId = (int)($context->message['chat']['id'] ?? 0);
+            $isTelegramContext = true;
+            $chatId = (int)($context->message['chat']['id'] ?? 0);
+            $fromId = (int)($context->message['from']['id'] ?? 0);
+        }
+
+        $targetPlayerName = null;
+
+        if (!empty($context->args[0])) {
+            $targetPlayerName = $context->args[0];
+        } else {
+            // This case should ideally not be reached in Telegram if UI is correctly implemented
+            // but as a safeguard, we check.
+            $this->bot->sendMessage($chatId, $this->lang->get("telegram-myinfo-player-required"));
+            return true;
+        }
+
+        // Validate that the target player is bound to this Telegram ID if in Telegram context
+        if ($isTelegramContext && $fromId !== 0) {
+            $boundPlayers = $this->bindingService->getBoundPlayerNames($fromId);
+            if (!in_array(strtolower($targetPlayerName), array_map('strtolower', $boundPlayers), true)) {
+                $this->bot->sendMessage($chatId, $this->lang->get("telegram-myinfo-not-bound-to-you", ["player" => $targetPlayerName]));
+                return true;
             }
-            if (isset($context->message['from']) && is_array($context->message['from'])) {
-                $fromId = (int)($context->message['from']['id'] ?? 0);
-            }
-        }
-        $lang = $context->lang;
-        $dataProvider = $context->dataProvider;
-
-        if ($chatId === 0 || $fromId === 0) {
-            return true;
         }
 
-        if ($dataProvider->getBindingStatus($fromId) !== 2) {
-            $this->bot->sendMessage($chatId, $lang->get("telegram-myinfo-not-bound"));
-            return true;
-        }
+        $this->displayPlayerInfo($chatId, $targetPlayerName);
+        return true;
+    }
 
-        $playerName = $dataProvider->getBoundPlayerName($fromId);
-        if ($playerName === null) {
-            $this->bot->sendMessage($chatId, $lang->get("telegram-myinfo-not-bound"));
-            return true;
-        }
-
-        $player = Server::getInstance()->getPlayerExact($playerName) ?? Server::getInstance()->getOfflinePlayer($playerName);
+    private function displayPlayerInfo(int $chatId, string $playerName): void {
+        $player = $this->server->getPlayerExact($playerName) ?? $this->server->getOfflinePlayer($playerName);
 
         if ($player === null) {
-            $this->bot->sendMessage($chatId, $lang->get("telegram-myinfo-player-not-found"));
-            return true;
+            $this->bot->sendMessage($chatId, $this->lang->get("telegram-myinfo-player-not-found"));
+            return;
         }
 
-        $placeholders = [];
-        $placeholders['nickname'] = $player->getName();
+        $placeholders = [
+            'nickname' => $player->getName(),
+        ];
 
-        if ($player instanceof Player) {
-            $template = $lang->get("telegram-myinfo-online");
-            $placeholders['status'] = $lang->get("player-info-status-online");
+        if ($player instanceof Player && $player->isOnline()) {
+            $template = $this->lang->get("telegram-myinfo-online");
+            $placeholders['status'] = $this->lang->get("player-info-status-online");
             $placeholders['health'] = $player->getHealth();
             $pos = $player->getPosition();
             $placeholders['position'] = round($pos->getX()) . ", " . round($pos->getY()) . ", " . round($pos->getZ());
         } else {
-            $template = $lang->get("telegram-myinfo-offline");
-            $placeholders['status'] = $lang->get("player-info-status-offline");
+            $template = $this->lang->get("telegram-myinfo-offline");
+            $placeholders['status'] = $this->lang->get("player-info-status-offline");
         }
 
-        $event = new PlayerDataInfoEvent($player);
+        $event = new PlayerDataInfoEvent($player, $this->plugin);
         $event->call();
 
         $allPlaceholders = array_merge($placeholders, $event->getPlaceholders());
 
-        $infoText = preg_replace_callback('/\{([a-zA-Z0-9_]+)\}/', function (array $matches) use ($allPlaceholders): string {
-            return (string)($allPlaceholders[$matches[1]] ?? '');
-        }, $template);
-
-        // Clean up any empty lines that might result from missing placeholders
+        $infoText = preg_replace_callback('/\{([a-zA-Z0-9_]+)\}/', fn(array $matches) => (string)($allPlaceholders[$matches[1]] ?? ''), $template);
         $infoText = preg_replace('/^\s*\n/m', '', $infoText ?? '');
 
-        if ($infoText === null) {
-            $infoText = ''; // Ensure it's a string even if preg_replace fails
-        }
-
-        $this->bot->sendMessage($chatId, $infoText);
-        return true;
+        $this->bot->sendMessage($chatId, $infoText ?? '');
     }
 }
