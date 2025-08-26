@@ -33,6 +33,7 @@ use newlandpe\BindingManager\Provider\BindingStatus;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 use newlandpe\BindingManager\Util\CodeGenerator;
 use newlandpe\BindingManager\Main;
+use pocketmine\Server;
 use pocketmine\utils\Config;
 
 class BindingService {
