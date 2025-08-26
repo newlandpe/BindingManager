@@ -64,18 +64,20 @@ class ResetBindingCommand implements CommandInterface {
         }
 
         $playerName = $args[0];
-        $telegramId = $this->bindingService->getTelegramIdByPlayerName($playerName);
+        $this->bindingService->getTelegramIdByPlayerName($playerName, function (?int $telegramId) use ($chatId, $playerName): void {
+            if ($telegramId === null) {
+                $this->bot->sendMessage($chatId, $this->lang->get("telegram-reset-fail-not-bound", ["player_name" => $playerName]));
+                return;
+            }
 
-        if ($telegramId === null) {
-            $this->bot->sendMessage($chatId, $this->lang->get("telegram-reset-fail-not-bound", ["player_name" => $playerName]));
-            return true;
-        }
-
-        if ($this->bindingService->removePermanentBinding($telegramId, $playerName)) {
-            $this->bot->sendMessage($chatId, $this->lang->get("telegram-reset-success", ["player_name" => $playerName]));
-        } else {
-            $this->bot->sendMessage($chatId, $this->lang->get("telegram-reset-fail", ["player_name" => $playerName]));
-        }
+            $this->bindingService->removePermanentBinding($telegramId, $playerName, \newlandpe\BindingManager\Event\AccountUnboundEvent::CAUSE_USER_REQUEST, function (bool $success) use ($chatId, $playerName): void {
+                if ($success) {
+                    $this->bot->sendMessage($chatId, $this->lang->get("telegram-reset-success", ["player_name" => $playerName]));
+                } else {
+                    $this->bot->sendMessage($chatId, $this->lang->get("telegram-reset-fail", ["player_name" => $playerName]));
+                }
+            });
+        });
 
         return true;
     }

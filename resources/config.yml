@@ -18,20 +18,19 @@ admins:
   - 987654321 # Replace with another Telegram user ID
 
 database:
-  # Available providers: sqlite, mysql
-  provider: "sqlite"
+  # The database type. "sqlite" and "mysql" are supported.
+  type: "sqlite" # Change to 'mysql' if you are using MySQL
   sqlite:
     file: "bindings.sqlite"
-    bindings-table: "bindings"
-    codes-table: "temporary_codes"
   mysql:
     host: "localhost"
     port: 3306
     user: "root"
     password: "password"
-    database: "binding_manager"
-    bindings-table: "bindings"
-    codes-table: "temporary_codes"
+    schema: "binding_manager"
+  # The maximum number of simultaneous SQL queries
+  # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
+  worker-limit: 1
 
 network:
   # Allows forcing a domain name to resolve to a specific IP address.

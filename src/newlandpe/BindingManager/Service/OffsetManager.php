@@ -27,9 +27,11 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Service;
 
+use Closure;
+
 interface OffsetManager {
 
-    public function getOffset(): int;
+    public function getOffset(Closure $callback): void;
 
     public function setOffset(int $offset): void;
 }

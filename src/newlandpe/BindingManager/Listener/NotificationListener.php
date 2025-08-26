@@ -56,11 +56,16 @@ class NotificationListener implements Listener {
         $player = $event->getPlayer();
         $playerName = $player->getName();
 
-        if ($this->bindingService->areNotificationsEnabled($playerName)) {
-            $telegramId = $this->bindingService->getTelegramIdByPlayerName($playerName);
-            if ($telegramId !== null) {
-                $this->bot->sendMessage($telegramId, $event->getMessage());
+        if ($this->bindingService->areNotificationsEnabled($playerName, function (bool $enabled) use ($player, $event): void {
+            if ($enabled) {
+                $this->bindingService->getTelegramIdByPlayerName($player->getName(), function (?int $telegramId) use ($event): void {
+                    if ($telegramId !== null) {
+                        $this->bot->sendMessage($telegramId, $event->getMessage());
+                    }
+                });
             }
+        })) {
+            // The logic is now handled in the callbacks
         }
     }
 

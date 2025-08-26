@@ -74,22 +74,22 @@ class UnbindCommand implements CommandInterface {
             return true;
         }
 
-        $boundPlayers = $this->bindingService->getBoundPlayerNames($fromId);
-        if (!in_array(strtolower($targetPlayerName), array_map('strtolower', $boundPlayers), true)) {
-            $this->bot->sendMessage($chatId, $this->lang->get("telegram-unbind-not-bound-to-you", ["player" => $targetPlayerName]));
-            return true;
-        }
+        $this->bindingService->getBoundPlayerNames($fromId, function (array $boundPlayers) use ($chatId, $fromId, $targetPlayerName): void {
+            if (!in_array(strtolower($targetPlayerName), array_map('strtolower', $boundPlayers), true)) {
+                $this->bot->sendMessage($chatId, $this->lang->get("telegram-unbind-not-bound-to-you", ["player" => $targetPlayerName]));
+                return;
+            }
 
-        $code = $this->bindingService->initiateUnbinding($fromId, $targetPlayerName);
-        if ($code === null) {
-            $this->bot->sendMessage($chatId, $this->lang->get("telegram-unbind-fail", ["player" => $targetPlayerName]));
-            return true;
-        }
+            $this->bindingService->initiateUnbinding($fromId, $targetPlayerName, function (?string $code) use ($chatId, $targetPlayerName): void {
+                if ($code === null) {
+                    $this->bot->sendMessage($chatId, $this->lang->get("telegram-unbind-fail", ["player" => $targetPlayerName]));
+                    return;
+                }
 
-        // The Main class instance is already available via DI as $this->plugin
-        // $this->plugin->setUserState($fromId, 'awaiting_unbind_confirm:' . $targetPlayerName); // This state seems to be handled elsewhere or is part of a deprecated flow.
+                $this->bot->sendMessage($chatId, $this->lang->get("telegram-unbind-code", ['code' => $code, 'player' => $targetPlayerName]), $this->keyboardFactory->createUnbindCancelKeyboard());
+            });
+        });
 
-        $this->bot->sendMessage($chatId, $this->lang->get("telegram-unbind-code", ['code' => $code, 'player' => $targetPlayerName]), $this->keyboardFactory->createUnbindCancelKeyboard());
         return true;
     }
 }

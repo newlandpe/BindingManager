@@ -67,18 +67,14 @@ class BindingCommand implements CommandInterface {
         }
 
         $playerName = $args[0];
-        // The service method was renamed for clarity, let's use the correct one.
-        $code = $this->bindingService->initiatePlayerBinding($playerName, $fromId);
+        $this->bindingService->initiatePlayerBinding($playerName, $fromId, function (?string $code) use ($chatId, $playerName): void {
+            if ($code === null) {
+                $this->bot->sendMessage($chatId, $this->lang->get('telegram-binding-player-already-bound'));
+                return;
+            }
+            $this->bot->sendMessage($chatId, $this->lang->get("chat-binding-code", ['code' => $code]), $this->keyboardFactory->createCancelKeyboard($code));
+        });
 
-        if ($code === null) {
-            // The service now handles the logic of checking if the player or telegram account is already bound.
-            // We need a more specific message, but for now, let's use a generic failure message.
-            // A better implementation would have the service return a reason for the failure.
-            $this->bot->sendMessage($chatId, $this->lang->get('telegram-binding-player-already-bound'));
-            return true;
-        }
-
-        $this->bot->sendMessage($chatId, $this->lang->get("chat-binding-code", ['code' => $code]), $this->keyboardFactory->createCancelKeyboard($code));
         return true;
     }
 }

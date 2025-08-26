@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Service;
 
+use Closure;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 
 class PersistentOffsetManager implements OffsetManager {
@@ -37,8 +38,8 @@ class PersistentOffsetManager implements OffsetManager {
         $this->dataProvider = $dataProvider;
     }
 
-    public function getOffset(): int {
-        return $this->dataProvider->getTelegramOffset();
+    public function getOffset(Closure $callback): void {
+        $this->dataProvider->getTelegramOffset($callback);
     }
 
     public function setOffset(int $offset): void {

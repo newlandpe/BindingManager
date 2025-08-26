@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Service;
 
+use Closure;
 use newlandpe\BindingManager\Provider\DataProviderInterface;
 
 class PersistentUserStateManager implements UserStateManager {
@@ -37,8 +38,8 @@ class PersistentUserStateManager implements UserStateManager {
         $this->dataProvider = $dataProvider;
     }
 
-    public function getUserState(int $userId): ?string {
-        return $this->dataProvider->getUserState($userId);
+    public function getUserState(int $userId, Closure $callback): void {
+        $this->dataProvider->getUserState($userId, $callback);
     }
 
     public function setUserState(int $userId, ?string $state): void {

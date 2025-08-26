@@ -27,49 +27,51 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Provider;
 
+use Closure;
+
 interface DataProviderInterface {
 
-    public function __construct(array $config, ?string $dataFolder = null);
+    public function getBoundPlayerNames(int $telegramId, Closure $callback): void;
 
-    public function getBoundPlayerNames(int $telegramId): array;
+    public function addPermanentBinding(int $telegramId, string $playerName, Closure $callback): void;
 
-    public function addPermanentBinding(int $telegramId, string $playerName): bool;
+    public function removePermanentBinding(int $telegramId, string $playerName, Closure $callback): void;
 
-    public function removePermanentBinding(int $telegramId, string $playerName): bool;
+    public function isPlayerNameBound(string $playerName, Closure $callback): void;
 
-    public function isPlayerNameBound(string $playerName): bool;
+    public function getTelegramIdByPlayerName(string $playerName, Closure $callback): void;
 
-    public function getTelegramIdByPlayerName(string $playerName): ?int;
+    public function createTemporaryBinding(string $playerName, int $telegramId, string $code, int $expiresAt, Closure $callback): void;
 
-    public function createTemporaryBinding(string $playerName, int $telegramId, string $code, int $expiresAt): bool;
+    public function findTemporaryBindingByCode(string $code, Closure $callback): void;
 
-    public function findTemporaryBindingByCode(string $code): ?array;
-
-    public function findTemporaryBindingByPlayerName(string $playerName): ?array;
+    public function findTemporaryBindingByPlayerName(string $playerName, Closure $callback): void;
 
     public function deleteTemporaryBinding(string $code): void;
 
-    public function createTemporaryUnbindCode(int $telegramId, string $playerName, string $code, int $expiresAt): bool;
+    public function createTemporaryUnbindCode(int $telegramId, string $playerName, string $code, int $expiresAt, Closure $callback): void;
 
-    public function findTemporaryUnbindCode(string $code): ?array;
+    public function findTemporaryUnbindCode(string $code, Closure $callback): void;
 
     public function deleteTemporaryUnbindCode(string $code): void;
 
-    public function toggleNotifications(string $playerName): bool;
+    public function toggleNotifications(string $playerName, Closure $callback): void;
 
-    public function areNotificationsEnabled(string $playerName): bool;
+    public function areNotificationsEnabled(string $playerName, Closure $callback): void;
 
-    public function isTwoFactorEnabled(string $playerName): bool;
+    public function isTwoFactorEnabled(string $playerName, Closure $callback): void;
 
     public function setTwoFactor(string $playerName, bool $enabled): void;
 
-    public function getTelegramOffset(): int;
+    public function getTelegramOffset(Closure $callback): void;
 
     public function setTelegramOffset(int $offset): void;
 
-    public function getUserState(int $userId): ?string;
+    public function getUserState(int $userId, Closure $callback): void;
 
     public function setUserState(int $userId, ?string $state): void;
 
     public function deleteExpiredTemporaryBindings(): void;
+
+    public function close(): void;
 }

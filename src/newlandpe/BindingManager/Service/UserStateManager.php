@@ -27,9 +27,11 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Service;
 
+use Closure;
+
 interface UserStateManager {
 
-    public function getUserState(int $userId): ?string;
+    public function getUserState(int $userId, Closure $callback): void;
 
     public function setUserState(int $userId, ?string $state): void;
 }

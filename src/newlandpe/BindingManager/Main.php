@@ -6,8 +6,8 @@
  * | __ )(_)_ __   __| (_)_ __   __ _|  \/  | __ _ _ __   __ _  __ _  ___ _ __
  * |  _ \| | '_ \ / _` | | '_ \ / _` | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__|
  * | |_) | | | | | (_| | | | | | (_| | |  | | (_| | | | | (_| | (_| |  __/ |
- * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_| 
- *                              |___/                          |___/ 
+ * |____/|_|_| |_|\__,_|_|_| |_|\__, |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|
+ *                              |___/                          |___/
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the CSSM Unlimited License v2.0.
@@ -110,7 +110,7 @@ class Main extends PluginBase implements Listener {
         $this->container->register(CodeGenerator::class, fn() => new CodeGenerator((int)$this->getConfig()->get('code-length-bytes', 3)));
 
         // DataProvider Service
-        $this->container->register(DataProviderInterface::class, fn() => DataProviderFactory::create($this->getConfig()->get('database', []), $this->getDataFolder()));
+        $this->container->register(DataProviderInterface::class, fn() => DataProviderFactory::create($this));
 
         // State and Offset Managers
         $this->container->register(OffsetManager::class, fn(ServiceContainer $c) => new PersistentOffsetManager($c->get(DataProviderInterface::class)));

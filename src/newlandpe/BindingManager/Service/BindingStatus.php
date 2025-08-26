@@ -25,7 +25,7 @@
 
 declare(strict_types=1);
 
-namespace newlandpe\BindingManager\Provider;
+namespace newlandpe\BindingManager\Service;
 
 class BindingStatus {
 

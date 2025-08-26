@@ -70,20 +70,24 @@ class ConfirmCommand extends Command implements PluginOwned {
         $playerName = $sender->getName();
 
         // First, try to confirm a new account binding
-        if ($this->bindingService->confirmPlayerBinding($playerName, $code)) {
-            $sender->sendMessage($this->lang->get("command-confirm-bind-success"));
-            return true;
-        }
+        $this->bindingService->confirmPlayerBinding($playerName, $code, function (bool $bindSuccess) use ($sender, $playerName, $code): void {
+            if ($bindSuccess) {
+                $sender->sendMessage($this->lang->get("command-confirm-bind-success"));
+                return;
+            }
 
-        // If that fails, try to confirm an account unbinding
-        if ($this->bindingService->confirmUnbinding($playerName, $code)) {
-            $sender->sendMessage($this->lang->get("command-confirm-unbind-success", ['player' => $playerName]));
-            return true;
-        }
+            // If that fails, try to confirm an account unbinding
+            $this->bindingService->confirmUnbinding($playerName, $code, function (bool $unbindSuccess) use ($sender, $playerName): void {
+                if ($unbindSuccess) {
+                    $sender->sendMessage($this->lang->get("command-confirm-unbind-success", ['player' => $playerName]));
+                } else {
+                    // If both fail, send a generic failure message. We can check which type of code it was to give a better message.
+                    // For now, we will assume the most common case is binding failure.
+                    $sender->sendMessage($this->lang->get("command-confirm-bind-fail"));
+                }
+            });
+        });
 
-        // If both fail, send a generic failure message. We can check which type of code it was to give a better message.
-        // For now, we will assume the most common case is binding failure.
-        $sender->sendMessage($this->lang->get("command-confirm-bind-fail"));
         return true;
     }
     

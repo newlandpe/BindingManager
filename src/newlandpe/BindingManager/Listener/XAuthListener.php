@@ -51,10 +51,10 @@ class XAuthListener implements Listener {
      */
     public function onPlayerUnregister(PlayerUnregisterEvent $event): void {
         $playerName = $event->getPlayer()->getName();
-        $telegramId = $this->bindingService->getTelegramIdByPlayerName($playerName);
-
-        if ($telegramId !== null) {
-            $this->bindingService->removePermanentBinding($telegramId, $playerName, AccountUnboundEvent::CAUSE_XAUTH_UNREGISTER);
-        }
+        $this->bindingService->getTelegramIdByPlayerName($playerName, function (?int $telegramId) use ($playerName): void {
+            if ($telegramId !== null) {
+                $this->bindingService->removePermanentBinding($telegramId, $playerName, \newlandpe\BindingManager\Event\AccountUnboundEvent::CAUSE_XAUTH_UNREGISTER);
+            }
+        });
     }
 }

@@ -28,32 +28,28 @@ declare(strict_types=1);
 namespace newlandpe\BindingManager\Provider;
 
 use InvalidArgumentException;
+use newlandpe\BindingManager\Main;
+use poggit\libasynql\DataConnector;
+use poggit\libasynql\libasynql;
 
 class DataProviderFactory {
 
-    /**
-     * @param array<string, mixed> $config
-     */
-    public static function create(array $config, string $dataFolder): DataProviderInterface {
-        $providerType = strtolower($config['provider'] ?? 'sqlite');
+    public static function create(Main $plugin): DataProviderInterface {
+        $config = $plugin->getConfig()->get("database");
+        $connector = libasynql::create($plugin, $config, [
+            "sqlite" => "sqlite.sql",
+            "mysql" => "mysql.sql"
+        ]);
+
+        $providerType = strtolower($config['type'] ?? 'sqlite');
 
         switch ($providerType) {
             case 'sqlite':
-                $providerClass = SqliteProvider::class;
-                $providerConfig = $config['sqlite'] ?? [];
-                break;
+                return new SqliteProvider($connector);
             case 'mysql':
-                $providerClass = MysqlProvider::class;
-                $providerConfig = $config['mysql'] ?? [];
-                break;
+                return new MysqlProvider($connector);
             default:
                 throw new InvalidArgumentException("Invalid data provider specified: '$providerType'. Only 'sqlite' and 'mysql' are supported.");
         }
-
-        if (!is_array($providerConfig)) {
-            throw new InvalidArgumentException("Configuration for provider '$providerType' must be an array");
-        }
-
-        return new $providerClass($providerConfig, $dataFolder);
     }
 }

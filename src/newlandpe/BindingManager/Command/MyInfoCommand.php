@@ -78,16 +78,18 @@ class MyInfoCommand implements CommandInterface {
             return true;
         }
 
-        // Validate that the target player is bound to this Telegram ID if in Telegram context
         if ($isTelegramContext && $fromId !== 0) {
-            $boundPlayers = $this->bindingService->getBoundPlayerNames($fromId);
-            if (!in_array(strtolower($targetPlayerName), array_map('strtolower', $boundPlayers), true)) {
-                $this->bot->sendMessage($chatId, $this->lang->get("telegram-myinfo-not-bound-to-you", ["player" => $targetPlayerName]));
-                return true;
-            }
+            $this->bindingService->getBoundPlayerNames($fromId, function (array $boundPlayers) use ($chatId, $targetPlayerName): void {
+                if (!in_array(strtolower($targetPlayerName), array_map('strtolower', $boundPlayers), true)) {
+                    $this->bot->sendMessage($chatId, $this->lang->get("telegram-myinfo-not-bound-to-you", ["player" => $targetPlayerName]));
+                    return;
+                }
+                $this->displayPlayerInfo($chatId, $targetPlayerName);
+            });
+        } else {
+            $this->displayPlayerInfo($chatId, $targetPlayerName);
         }
 
-        $this->displayPlayerInfo($chatId, $targetPlayerName);
         return true;
     }
 

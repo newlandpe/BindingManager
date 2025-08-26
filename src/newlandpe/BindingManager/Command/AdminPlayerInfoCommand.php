@@ -80,19 +80,20 @@ class AdminPlayerInfoCommand implements CommandInterface {
             return true;
         }
 
-        $boundPlayerNames = $this->bindingService->getBoundPlayerNames($targetTelegramId);
+        $this->bindingService->getBoundPlayerNames($targetTelegramId, function (array $boundPlayerNames) use ($chatId, $targetTelegramId, $lang): void {
+            if (count($boundPlayerNames) > 0) {
+                $playerList = implode(", ", $boundPlayerNames);
+                $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-success", [
+                    "telegram_id" => $targetTelegramId,
+                    "player_list" => $playerList
+                ]));
+            } else {
+                $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-not-found", [
+                    "telegram_id" => $targetTelegramId
+                ]));
+            }
+        });
 
-        if (count($boundPlayerNames) > 0) {
-            $playerList = implode(", ", $boundPlayerNames);
-            $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-success", [
-                "telegram_id" => $targetTelegramId,
-                "player_list" => $playerList
-            ]));
-        } else {
-            $this->bot->sendMessage($chatId, $lang->get("telegram-admin-playerinfo-not-found", [
-                "telegram_id" => $targetTelegramId
-            ]));
-        }
         return true;
     }
 }

@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 namespace newlandpe\BindingManager\Service;
 
+use Closure;
 use newlandpe\BindingManager\LanguageManager;
 use newlandpe\BindingManager\Main;
 use newlandpe\BindingManager\Telegram\TelegramBot;
@@ -55,59 +56,62 @@ class TwoFactorAuthService {
 
     public function start2FAProcess(Player $player): void {
         $playerName = $player->getName();
-        if (!$this->bindingService->isTwoFactorEnabled($playerName)) {
-            return; // 2FA not enabled for this player
-        }
+        $this->bindingService->isTwoFactorEnabled($playerName, function (bool $isTwoFactorEnabled) use ($player, $playerName): void {
+            if (!$isTwoFactorEnabled) {
+                return; // 2FA not enabled for this player
+            }
 
-        // Conditional logic based on twoFactorMode
-        $twoFactorMode = $this->config->get('two-factor-mode', 'after_password');
-        if ($twoFactorMode === 'after_password') {
-            // If mode is 'after_password', only proceed if it was a manual login
-            $xAuthPlugin = $this->plugin->getServer()->getPluginManager()->getPlugin('XAuth');
-            if ($xAuthPlugin instanceof \Luthfi\XAuth\Main) {
-                $authFlowManager = $xAuthPlugin->getAuthenticationFlowManager();
-                $status = $authFlowManager->getPlayerAuthenticationStepStatus($player, "xauth_login");
-                if ($status === null) { // If xauth_login step is not completed
-                    // If xauth_login step is not completed, do not start 2FA process
+            // Conditional logic based on twoFactorMode
+            $twoFactorMode = $this->config->get('two-factor-mode', 'after_password');
+            if ($twoFactorMode === 'after_password') {
+                // If mode is 'after_password', only proceed if it was a manual login
+                $xAuthPlugin = $this->plugin->getServer()->getPluginManager()->getPlugin('XAuth');
+                if ($xAuthPlugin instanceof \Luthfi\XAuth\Main) {
+                    $authFlowManager = $xAuthPlugin->getAuthenticationFlowManager();
+                    $status = $authFlowManager->getPlayerAuthenticationStepStatus($player, "xauth_login");
+                    if ($status === null) { // If xauth_login step is not completed
+                        // If xauth_login step is not completed, do not start 2FA process
+                        return;
+                    }
+                } else {
+                    // If XAuth plugin is not found or not an instance of \Luthfi\XAuth\Main,
+                    // we should probably log an error or handle this case appropriately.
+                    // For now, we'll assume it should not proceed with 2FA if XAuth is not properly loaded.
                     return;
                 }
-            } else {
-                // If XAuth plugin is not found or not an instance of \Luthfi\XAuth\Main,
-                // we should probably log an error or handle this case appropriately.
-                // For now, we'll assume it should not proceed with 2FA if XAuth is not properly loaded.
-                return;
             }
-        }
 
-        $telegramId = $this->bindingService->getTelegramIdByPlayerName($playerName);
-        if ($telegramId === null) {
-            return; // Player is not bound
-        }
+            $this->bindingService->getTelegramIdByPlayerName($playerName, function (?int $telegramId) use ($player, $playerName): void {
+                if ($telegramId === null) {
+                    return; // Player is not bound
+                }
 
-        $code = $this->generateUniqueCode();
-        $timeout = $this->config->get('2fa-timeout-seconds', 120);
-        $expiry = time() + (int)$timeout;
+                $code = $this->generateUniqueCode();
+                $timeout = $this->config->get('2fa-timeout-seconds', 120);
+                $expiry = time() + (int)$timeout;
 
-        $keyboard = [
-            'inline_keyboard' => [
-                [
-                    ['text' => $this->languageManager->get('2fa-keyboard-confirm'), 'callback_data' => '2fa:confirm:' . $playerName . ':' . $code],
-                    ['text' => $this->languageManager->get('2fa-keyboard-deny'), 'callback_data' => '2fa:deny:' . $playerName . ':' . $code]
-                ]
-            ]
-        ];
+                $keyboard = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => $this->languageManager->get('2fa-keyboard-confirm'), 'callback_data' => '2fa:confirm:' . $playerName . ':' . $code],
+                            ['text' => $this->languageManager->get('2fa-keyboard-deny'), 'callback_data' => '2fa:deny:' . $playerName . ':' . $code]
+                        ]
+                    ]
+                ];
 
-        $message = $this->languageManager->get('2fa-login-attempt', [
-            'player_name' => $playerName,
-            'ip' => $player->getNetworkSession()->getIp()
-        ]);
+                $message = $this->languageManager->get('2fa-login-attempt', [
+                    'player_name' => $playerName,
+                    'ip' => $player->getNetworkSession()->getIp()
+                ]);
 
-        $sentMessage = $this->bot->sendMessage($telegramId, $message, $keyboard);
+                $sentMessage = $this->bot->sendMessage($telegramId, $message, $keyboard);
 
-        if ($sentMessage !== null) {
-            $this->addRequest($playerName, $telegramId, $sentMessage, $code, $expiry);
-            $player->sendMessage($this->languageManager->get('2fa-prompt'));
-        }
+                if ($sentMessage !== null) {
+                    $this->addRequest($playerName, $telegramId, $sentMessage, $code, $expiry);
+                    $player->sendMessage($this->languageManager->get('2fa-prompt'));
+                }
+            });
+        });
     }
 
     public function addRequest(string $playerName, int $chatId, int $messageId, string $code, int $expiry): void {
@@ -162,14 +166,15 @@ class TwoFactorAuthService {
         return bin2hex(random_bytes(4)); // 8 characters hex code
     }
 
-    public function get2FAStatus(string $playerName): bool {
-        return $this->bindingService->isTwoFactorEnabled($playerName);
+    public function get2FAStatus(string $playerName, Closure $callback): void {
+        $this->bindingService->isTwoFactorEnabled($playerName, $callback);
     }
 
-    public function toggle2FA(string $playerName): bool {
-        $currentStatus = $this->bindingService->isTwoFactorEnabled($playerName);
-        $newStatus = !$currentStatus;
-        $this->bindingService->setTwoFactor($playerName, $newStatus);
-        return $newStatus;
+    public function toggle2FA(string $playerName, Closure $callback): void {
+        $this->bindingService->isTwoFactorEnabled($playerName, function (bool $currentStatus) use ($playerName, $callback): void {
+            $newStatus = !$currentStatus;
+            $this->bindingService->setTwoFactor($playerName, $newStatus);
+            $callback($newStatus);
+        });
     }
 }

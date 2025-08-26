@@ -82,11 +82,13 @@ class TgCommand extends Command implements PluginOwned {
                     return false;
                 }
                 $code = $args[2];
-                if ($this->bindingService->confirmUnbinding($sender->getName(), $code)) {
-                    $sender->sendMessage($this->lang->get("command-unbind-confirm-success", ['player' => $sender->getName()]));
-                } else {
-                    $sender->sendMessage($this->lang->get("command-unbind-confirm-fail", ['player' => $sender->getName()]));
-                }
+                $this->bindingService->confirmUnbinding($sender->getName(), $code, function (bool $success) use ($sender): void {
+                    if ($success) {
+                        $sender->sendMessage($this->lang->get("command-unbind-confirm-success", ['player' => $sender->getName()]));
+                    } else {
+                        $sender->sendMessage($this->lang->get("command-unbind-confirm-fail", ['player' => $sender->getName()]));
+                    }
+                });
                 break;
             //TODO: The in-game reset feature is not fully implemented in the service layer.
             // case "reset":
@@ -134,16 +136,19 @@ class TgCommand extends Command implements PluginOwned {
                     return false;
                 }
                 $playerName = $args[1];
-                $telegramId = $this->bindingService->getTelegramIdByPlayerName($playerName);
-                if ($telegramId !== null) {
-                    if ($this->bindingService->removePermanentBinding($telegramId, $playerName, \newlandpe\BindingManager\Event\AccountUnboundEvent::CAUSE_ADMIN_FORCE)) {
-                        $sender->sendMessage($this->lang->get("command-forceunbind-success", ["player_name" => $playerName]));
+                $this->bindingService->getTelegramIdByPlayerName($playerName, function (?int $telegramId) use ($sender, $playerName): void {
+                    if ($telegramId !== null) {
+                        $this->bindingService->removePermanentBinding($telegramId, $playerName, \newlandpe\BindingManager\Event\AccountUnboundEvent::CAUSE_ADMIN_FORCE, function (bool $success) use ($sender, $playerName): void {
+                            if ($success) {
+                                $sender->sendMessage($this->lang->get("command-forceunbind-success", ["player_name" => $playerName]));
+                            } else {
+                                $sender->sendMessage($this->lang->get("command-forceunbind-fail", ["player_name" => $playerName]));
+                            }
+                        });
                     } else {
-                        $sender->sendMessage($this->lang->get("command-forceunbind-fail", ["player_name" => $playerName]));
+                        $sender->sendMessage($this->lang->get("command-forceunbind-player-not-bound", ["player_name" => $playerName]));
                     }
-                } else {
-                    $sender->sendMessage($this->lang->get("command-forceunbind-player-not-bound", ["player_name" => $playerName]));
-                }
+                });
                 break;
             default:
                 $sender->sendMessage($this->lang->get("command-unknown-subcommand"));
