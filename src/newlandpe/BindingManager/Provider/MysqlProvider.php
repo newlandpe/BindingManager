@@ -42,10 +42,11 @@ class MysqlProvider implements DataProviderInterface {
             throw new InvalidArgumentException("Missing MySQL configuration parameters.");
         }
 
-        $this->bindingsTable = $config['bindings-table'] ?? 'bindings';
-        $this->codesTable = $config['codes-table'] ?? 'temporary_codes';
+        $this->bindingsTable = isset($config['bindings-table']) ? $config['bindings-table'] : 'bindings';
+        $this->codesTable = isset($config['codes-table']) ? $config['codes-table'] : 'temporary_codes';
 
-        $dsn = "mysql:host={$config['host']};port={$config['port'] ?? 3306};dbname={$config['database']};charset=utf8mb4";
+        $port = isset($config['port']) ? $config['port'] : 3306;
+        $dsn = "mysql:host={$config['host']};port={$port};dbname={$config['database']};charset=utf8mb4";
         try {
             $this->pdo = new PDO($dsn, $config['user'], $config['password']);
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
